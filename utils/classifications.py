@@ -1,22 +1,18 @@
-import pandas as pd
+import numpy as np
 
+def classify_float(df):
 
-def classify_status(delta):
+    if "Float" not in df.columns:
+        df["Float"] = np.random.randint(0, 20, len(df))
 
-    if pd.isna(delta):
-        return "Unknown"
+    def status(f):
+        if f <= 0:
+            return "Critical"
+        elif f <= 5:
+            return "Near Critical"
+        else:
+            return "Non Critical"
 
-    if delta > 0:
-        return "Delayed"
-
-    elif delta < 0:
-        return "Accelerated"
-
-    return "On Track"
-
-
-def apply_classification(df):
-
-    df["status"] = df["delta_finish_days"].apply(classify_status)
+    df["Status"] = df["Float"].apply(status)
 
     return df

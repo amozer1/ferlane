@@ -1,81 +1,48 @@
 import streamlit as st
 
+from views.executive import render_executive
+from views.comparison import render_comparison
+from views.critical import render_critical
+from views.analytics import render_analytics
+from views.exports import render_exports
+
 st.set_page_config(
-    page_title="FERLANE NEC Dashboard",
-    layout="wide"
+    page_title="FERLANE NEC Programme Controls",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-with open("assets/styles.css") as f:
-    st.markdown(
-        f"<style>{f.read()}</style>",
-        unsafe_allow_html=True
-    )
+# Hide Streamlit chrome completely
+st.markdown("""
+<style>
+#MainMenu {visibility: hidden;}
+header {visibility: hidden;}
+footer {visibility: hidden;}
+section[data-testid="stSidebar"] {display: none;}
+.block-container {padding-top: 1.2rem;}
+</style>
+""", unsafe_allow_html=True)
 
-st.markdown(
-    """
-    <h1 style='text-align:center;color:#002b5c;'>
-    🏗️ FERLANE NEC Dashboard
-    </h1>
-    """,
-    unsafe_allow_html=True
-)
+# Simple top navigation (no sidebar system)
+tabs = st.tabs([
+    "Executive",
+    "Schedule Comparison",
+    "Critical Path",
+    "Analytics",
+    "Exports"
+])
 
-st.markdown(
-    """
-    <div style='text-align:center;margin-bottom:40px;'>
-    Enterprise NEC Programme Controls Platform
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+with tabs[0]:
+    render_executive()
 
-c1, c2 = st.columns(2)
-c3, c4 = st.columns(2)
+with tabs[1]:
+    render_comparison()
 
-with c1:
+with tabs[2]:
+    render_critical()
 
-    st.markdown("""
-    <div class='card'>
-    <h2>📊 Executive Dashboard</h2>
-    <p>Programme KPIs and NEC reporting</p>
-    </div>
-    """, unsafe_allow_html=True)
+with tabs[3]:
+    render_analytics()
 
-    if st.button("Open Executive Dashboard"):
-        st.switch_page("views/executive.py")
-
-with c2:
-
-    st.markdown("""
-    <div class='card'>
-    <h2>📋 Programme Comparison</h2>
-    <p>Clause 31 vs Clause 32 comparison</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if st.button("Open Programme Comparison"):
-        st.switch_page("views/comparison.py")
-
-with c3:
-
-    st.markdown("""
-    <div class='card'>
-    <h2>⚠️ Critical Path Analysis</h2>
-    <p>Float and critical path analysis</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if st.button("Open Critical Analysis"):
-        st.switch_page("views/critical.py")
-
-with c4:
-
-    st.markdown("""
-    <div class='card'>
-    <h2>📈 Trend Analytics</h2>
-    <p>Programme trends and float erosion</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if st.button("Open Trend Analytics"):
-        st.switch_page("views/analytics.py")
+with tabs[4]:
+    render_exports()

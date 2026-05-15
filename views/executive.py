@@ -1,83 +1,28 @@
 import streamlit as st
+import plotly.express as px
 
-with right:
+from core.engine import build_dashboard
+from components.cards import kpi_row
 
-    st.subheader("Total Float Distribution")
+def render_executive():
 
-    hist = px.histogram(
-        merged,
-        x="total float_32",
-        nbins=20,
-        title="Float Distribution"
-    )
+    data = build_dashboard()
 
-    st.plotly_chart(hist, use_container_width=True)
+    st.title("FERLANE NEC Programme Controls")
 
-# VARIANCE CHART
-st.subheader("Variance to Baseline")
+    kpi_row(data)
 
-variance = merged.sort_values("finish_32")
+    st.divider()
 
-line = px.line(
-    variance,
-    x="finish_32",
-    y="delta_finish_days",
-    title="CL31 vs CL32 Finish Variance"
-)
+    df = data["cl32"]
 
-st.plotly_chart(line, use_container_width=True)
+    status_counts = df["Status"].value_counts().reset_index()
+    status_counts.columns = ["Status", "Count"]
 
-# LOOK AHEAD
-st.subheader("4 Week Look Ahead")
+    fig = px.bar(status_counts, x="Status", y="Count", title="CL32 Float Classification")
+    st.plotly_chart(fig, use_container_width=True)
 
-today = pd.Timestamp.today()
-future = today + pd.Timedelta(days=28)
+    st.divider()
 
-lookahead = merged[
-    (merged["start_32"] >= today) &
-    (merged["start_32"] <= future)
-]
-
-st.dataframe(
-    lookahead[
-        [
-            "activity id",
-            "activity name_32",
-            "start_32",
-            "finish_32",
-            "total float_32",
-            "status"
-        ]
-    ],
-    use_container_width=True,
-    height=300
-)
-
-# KEY DATA TABLE
-st.subheader("Key Data Table")
-
-summary = pd.DataFrame({
-    "Metric": [
-        "Total Activities",
-        "Critical Activities",
-        "Delayed Activities",
-        "Accelerated Activities"
-    ],
-    "Value": [
-        len(merged),
-        critical,
-        len(merged[merged["status"] == "Delayed"]),
-        len(merged[merged["status"] == "Accelerated"])
-    ]
-})
-
-st.table(summary)
-
-# COMMENTARY
-st.subheader("Executive Commentary")
-
-st.info(
-    f"Programme currently contains {critical} critical activities. "
-    f"There are {len(merged[merged['status'] == 'Delayed'])} delayed activities "
-    f"against the baseline programme."
-)
+    st.subheader("NEC Programme Commentary")
+    st.info(data["commentary"])
