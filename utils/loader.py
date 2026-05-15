@@ -1,40 +1,35 @@
 import pandas as pd
 
-def build_card_one(cl31, cl32):
+def load_programme_data():
+    """
+    Loads CL31 and CL32 programme data
+    """
 
-    table = pd.DataFrame()
+    cl31_path = "data/CL31.xlsx"
+    cl32_path = "data/CL32.xlsx"
 
-    # Deliverable (assumes row alignment)
-    if "Deliverable" in cl32.columns:
-        table["Deliverable"] = cl32["Deliverable"]
-    else:
-        table["Deliverable"] = cl32.index
+    cl31 = pd.read_excel(cl31_path)
+    cl32 = pd.read_excel(cl32_path)
 
-    # Dates
-    table["CL31 Finish"] = pd.to_datetime(cl31["Finish"], errors="coerce").dt.strftime("%d-%b-%y")
-    table["CL32 Finish"] = pd.to_datetime(cl32["Finish"], errors="coerce").dt.strftime("%d-%b-%y")
+    # -----------------------------
+    # STANDARDISE COLUMN NAMES
+    # -----------------------------
 
-    # Δ Finish (Days)
-    table["Δ Finish (Days)"] = (
-        pd.to_datetime(cl32["Finish"], errors="coerce")
-        - pd.to_datetime(cl31["Finish"], errors="coerce")
-    ).dt.days.fillna(0).astype(int)
+    def clean_columns(df):
+        df.columns = [c.strip() for c in df.columns]
 
-    # Float Change
-    if "Float" in cl32.columns:
-        table["Float Change"] = cl32["Float"].fillna(0).astype(int)
-    else:
-        table["Float Change"] = 0
+        rename_map = {
+            "Total Float": "Float Change",
+            "Float": "Float Change",
+            "BL1 Finish": "CL31 Finish",
+            "CL32 Finish": "CL32 Finish",
+        }
 
-    # Status
-    def status(f):
-        if f <= 0:
-            return "🔴 Delayed"
-        elif f <= 5:
-            return "🟡 At Risk"
-        else:
-            return "🟢 On Track"
+        df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns}, inplace=True)
 
-    table["Status"] = table["Float Change"].apply(status)
+        return df
 
-    return table
+    cl31 = clean_columns(cl31)
+    cl32 = clean_columns(cl32)
+
+    return cl31, cl32
