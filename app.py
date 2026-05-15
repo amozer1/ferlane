@@ -29,8 +29,8 @@ st.markdown("### NEC Clause 31 vs Clause 32 Programme Comparison")
 
 DATA_FOLDER = Path("data")
 
-CL31_FILE = DATA_FOLDER / "CL31.csv"
-CL32_FILE = DATA_FOLDER / "CL32.csv"
+CL31_FILE = DATA_FOLDER / "CL31.xlsx"
+CL32_FILE = DATA_FOLDER / "CL32.xlsx"
 
 # ======================================================
 # LOAD FILES
