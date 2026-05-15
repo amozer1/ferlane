@@ -1,38 +1,22 @@
 import pandas as pd
 
+def clean_programme(df):
+    """
+    Standardises column names for CL31/CL32 consistency
+    """
 
-def clean_primavera(df):
+    df.columns = df.columns.str.strip()
 
-    df.columns = df.columns.str.strip().str.lower()
-
-    df = df[df["activity id"].notna()]
-
-    df = df[
-        df["activity id"]
-        .astype(str)
-        .str.contains("AMP8|CE-", na=False)
+    # Ensure required columns exist safely
+    required = [
+        "Activity ID",
+        "Activity Name",
+        "Start",
+        "Finish"
     ]
 
-    def clean_dates(series):
-
-        return pd.to_datetime(
-            series.astype(str)
-            .str.replace("A", "", regex=False)
-            .str.replace("*", "", regex=False)
-            .str.strip(),
-            errors="coerce"
-        )
-
-    for col in ["start", "finish"]:
-
-        if col in df.columns:
-            df[col] = clean_dates(df[col])
-
-    if "total float" in df.columns:
-
-        df["total float"] = pd.to_numeric(
-            df["total float"],
-            errors="coerce"
-        )
+    for col in required:
+        if col not in df.columns:
+            df[col] = None
 
     return df

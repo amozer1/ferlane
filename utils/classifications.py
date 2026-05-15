@@ -1,16 +1,36 @@
-def classify_status(row):
+import numpy as np
 
-    delta = row["Delta_Days"]
-    float_change = row["Float_Change"]
+def classify_status(df):
+    """
+    Assigns NEC programme status based on float and variance rules
+    """
 
-    if delta >= 14 or float_change <= -10:
-        return "Critical"
+    def get_status(row):
+        float_val = row.get("Float", 0)
+        variance = row.get("Variance - BL1 Finish Date", 0)
 
-    elif 5 <= delta < 14:
-        return "At Risk"
+        # 🔴 Critical
+        if float_val <= 0 or variance <= -14:
+            return "Critical"
 
-    elif delta <= 4 and float_change > -10:
+        # 🟡 Near Critical
+        elif float_val <= 10 or (-13 <= variance <= -5):
+            return "Near Critical"
+
+        # 🟢 On Track
+        elif float_val > 10 and variance > -5:
+            return "On Track"
+
+        # fallback
         return "On Track"
 
-    else:
-        return "On Track"
+    df["Status"] = df.apply(get_status, axis=1)
+
+    return df
+
+
+def classify_float(df):
+    """
+    Optional alias so your old imports don't break immediately
+    """
+    return classify_status(df)
