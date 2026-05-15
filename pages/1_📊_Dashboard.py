@@ -8,67 +8,96 @@ from utils.calculations import calculate_deltas
 from utils.classifications import classify_activity
 
 # ======================================================
-# PAGE CONFIG
+# CONFIG
 # ======================================================
 
 st.set_page_config(
-    page_title="Dashboard",
+    page_title="Design Deliverable Tracker",
     layout="wide"
 )
 
-# ======================================================
-# HEADER
-# ======================================================
-
-st.title("📊 Design Deliverable Tracker")
-st.markdown("### NEC Clause 31 vs Clause 32 Programme Dashboard")
+st.title("📊 Design Deliverable Tracker Dashboard")
+st.markdown("NEC Clause 31 vs Clause 32 Multi-Programme Analysis")
 
 st.markdown("---")
 
 # ======================================================
-# DATA LOADING LAYER (MULTI FILE READY)
+# DATA FOLDER
 # ======================================================
 
 DATA_FOLDER = Path("data")
 
+# ======================================================
+# SAFE DATA LOADER (FIXES YOUR ERROR)
+# ======================================================
+
 @st.cache_data
-def load_raw_data():
+def load_all_files():
 
     files = list(DATA_FOLDER.glob("*.xlsx"))
 
-    if not files:
-        st.error("No Excel files found in /data folder")
+    if len(files) == 0:
+        st.error("No .xlsx files found in /data folder")
         st.stop()
 
-    dfs = []
+    df_list = []
 
-    for f in files:
-        df = pd.read_excel(f, engine="openpyxl")
-        df["Source File"] = f.name
-        dfs.append(df)
+    for file in files:
 
-    return pd.concat(dfs, ignore_index=True)
+        df = pd.read_excel(file, engine="openpyxl")
 
+        # 🔥 FORCE SAFE COLUMN CREATION
+        df = df.copy()
+        df["Source File"] = file.name
+
+        df_list.append(df)
+
+    combined = pd.concat(df_list, ignore_index=True)
+
+    # 🔥 HARD SAFETY CHECK
+    if "Source File" not in combined.columns:
+        st.error("Critical Error: 'Source File' column missing after load")
+        st.stop()
+
+    return combined
+
+
+# ======================================================
+# SPLIT CL31 / CL32 SAFELY
+# ======================================================
 
 def split_programmes(df):
 
-    df31 = df[df["Source File"].str.contains("CL31", na=False)].copy()
-    df32 = df[df["Source File"].str.contains("CL32", na=False)].copy()
+    if "Source File" not in df.columns:
+        st.error("Missing 'Source File' column. Reload data.")
+        st.stop()
+
+    df31 = df[df["Source File"].astype(str).str.contains("CL31", na=False)].copy()
+    df32 = df[df["Source File"].astype(str).str.contains("CL32", na=False)].copy()
 
     return df31, df32
 
 
-@st.cache_data
-def build_dashboard_data():
+# ======================================================
+# BUILD PIPELINE (FULL PROCESS)
+# ======================================================
 
-    raw = load_raw_data()
+@st.cache_data
+def build_data():
+
+    raw = load_all_files()
 
     df31, df32 = split_programmes(raw)
 
-    if df31.empty or df32.empty:
-        st.error("Missing CL31 or CL32 data files")
+    if df31.empty:
+        st.error("No CL31 data found in files")
         st.stop()
 
+    if df32.empty:
+        st.error("No CL32 data found in files")
+        st.stop()
+
+    # PROCESSING PIPELINE
     df31 = clean_programme(df31)
     df32 = clean_programme(df32)
 
@@ -80,10 +109,10 @@ def build_dashboard_data():
     return merged
 
 
-df = build_dashboard_data()
+df = build_data()
 
 # ======================================================
-# FILTERS (CONTROL PANEL STYLE)
+# SIDEBAR FILTERS
 # ======================================================
 
 st.sidebar.header("🎛 Filters")
@@ -98,7 +127,7 @@ file_filter = st.sidebar.selectbox(
     ["All"] + sorted(df["Source File"].unique().tolist())
 )
 
-search = st.sidebar.text_input("Search Activity")
+search = st.sidebar.text_input("Search Activity ID / Name")
 
 filtered = df.copy()
 
@@ -115,7 +144,7 @@ if search:
     ]
 
 # ======================================================
-# KPI SECTION (EXECUTIVE VIEW)
+# KPI SECTION
 # ======================================================
 
 total = len(filtered)
@@ -137,73 +166,73 @@ c4.metric("On Track", on_track)
 st.markdown("---")
 
 # ======================================================
-# VISUAL SECTION (PROPER DASHBOARD BLOCK)
+# VISUAL SECTION
 # ======================================================
 
-st.markdown("## 📊 Programme Performance Overview")
+st.markdown("## 📊 Programme Overview")
 
-left, right = st.columns(2)
+col1, col2 = st.columns(2)
 
-with left:
+with col1:
 
-    chart_data = pd.DataFrame({
+    chart_df = pd.DataFrame({
         "Status": ["Delayed", "Accelerated", "On Track"],
         "Count": [delayed, accelerated, on_track]
     })
 
-    st.bar_chart(chart_data.set_index("Status"))
+    st.bar_chart(chart_df.set_index("Status"))
 
-with right:
+with col2:
 
     st.metric("Delay Exposure (%)", f"{delay_pct:.1f}%")
 
     st.progress(int(max(0, min(100, 100 - delay_pct))))
 
-    st.markdown(
-        f"""
-        ### Project Health
-
-        {"🔴 Critical" if delay_pct > 20 else "🟡 Moderate" if delay_pct > 10 else "🟢 Healthy"}
-        """
-    )
+    if delay_pct > 20:
+        st.error("🔴 Critical Programme Risk")
+    elif delay_pct > 10:
+        st.warning("🟡 Moderate Risk")
+    else:
+        st.success("🟢 Healthy Programme")
 
 st.markdown("---")
 
 # ======================================================
-# DATA TABLE (CORE CONTROL VIEW)
+# DATA TABLE
 # ======================================================
 
-st.markdown("## 📋 Activity Register")
+st.markdown("## 📋 Programme Register")
+
+required_cols = [
+    "Source File",
+    "Activity ID",
+    "Activity Name_31",
+    "Start_31",
+    "Finish_31",
+    "Start_32",
+    "Finish_32",
+    "Delta Start Days",
+    "Delta Finish Days",
+    "Float Variance",
+    "Status"
+]
+
+# SAFE COLUMN CHECK
+existing_cols = [c for c in required_cols if c in filtered.columns]
 
 st.dataframe(
-    filtered[
-        [
-            "Source File",
-            "Activity ID",
-            "Activity Name_31",
-            "Start_31",
-            "Finish_31",
-            "Start_32",
-            "Finish_32",
-            "Delta Start Days",
-            "Delta Finish Days",
-            "Float Variance",
-            "Status"
-        ]
-    ],
+    filtered[existing_cols],
     use_container_width=True,
     height=600
 )
 
 # ======================================================
-# EXPORT SECTION
+# EXPORT
 # ======================================================
 
-st.markdown("---")
-
 st.download_button(
-    "📥 Export Filtered Programme",
+    "📥 Export Data",
     data=filtered.to_csv(index=False),
-    file_name="programme_dashboard_export.csv",
+    file_name="design_deliverable_tracker.csv",
     mime="text/csv"
 )
