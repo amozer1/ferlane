@@ -1,27 +1,21 @@
 import pandas as pd
+from pathlib import Path
 
-def load_schedule(cl31_path, cl32_path):
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data"
+
+
+def load_schedule():
+    cl31_path = DATA_DIR / "CL31.xlsx"
+    cl32_path = DATA_DIR / "CL32.xlsx"
+
+    if not cl31_path.exists():
+        raise FileNotFoundError(f"Missing file: {cl31_path}")
+
+    if not cl32_path.exists():
+        raise FileNotFoundError(f"Missing file: {cl32_path}")
+
     cl31 = pd.read_excel(cl31_path)
     cl32 = pd.read_excel(cl32_path)
 
     return cl31, cl32
-
-
-def extract_deliverables(df):
-    """
-    Pull ONLY top-level deliverables (no indentation children)
-    Assumption: Deliverables are summary rows with missing Activity ID OR no 'FER-' codes
-    """
-
-    df = df.copy()
-
-    # Clean column names just in case
-    df.columns = [c.strip() for c in df.columns]
-
-    # Identify deliverable rows (summary level)
-    deliverables = df[
-        df["Activity Name"].notna() &
-        ~df["Activity ID"].astype(str).str.contains("FER-", na=False)
-    ].copy()
-
-    return deliverables

@@ -6,6 +6,6 @@ st.set_page_config(layout="wide")
 
 st.title("Design Dashboard")
 
-cl31, cl32 = load_schedule("CL31.xlsx", "CL32.xlsx")
+cl31, cl32 = load_schedule()
 
 build_deliverables_card(cl31, cl32)
