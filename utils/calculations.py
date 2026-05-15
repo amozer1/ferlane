@@ -1,28 +1,6 @@
-def calculate_deltas(df):
+import pandas as pd
 
-    # ============================================
-    # FINISH DELTA
-    # ============================================
-
-    df["Delta Finish Days"] = (
-        df["Finish_32"] - df["Finish_31"]
-    ).dt.days
-
-    # ============================================
-    # START DELTA
-    # ============================================
-
-    df["Delta Start Days"] = (
-        df["Start_32"] - df["Start_31"]
-    ).dt.days
-
-    # ============================================
-    # FLOAT VARIANCE
-    # ============================================
-
-    df["Float Variance"] = (
-        df["Total Float_32"] -
-        df["Total Float_31"]
-    )
-
+def calc_deltas(df):
+    df["delta_start"] = (df["clause 32 start"] - df["clause 31 start"]).dt.days
+    df["delta_finish"] = (df["clause 32 finish"] - df["clause 31 finish"]).dt.days
     return df

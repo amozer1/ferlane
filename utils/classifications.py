@@ -1,39 +1,19 @@
-import pandas as pd
+import numpy as np
 
-
-def classify_activity(row):
-
-    # ============================================
-    # NEW ACTIVITY
-    # ============================================
-
-    if pd.isna(row["Finish_31"]):
-        return "New Activity"
-
-    # ============================================
-    # REMOVED ACTIVITY
-    # ============================================
-
-    elif pd.isna(row["Finish_32"]):
-        return "Removed"
-
-    # ============================================
-    # DELAYED
-    # ============================================
-
-    elif row["Delta Finish Days"] > 0:
+def classify_status(delta):
+    if delta > 0:
         return "Delayed"
-
-    # ============================================
-    # ACCELERATED
-    # ============================================
-
-    elif row["Delta Finish Days"] < 0:
+    elif delta < 0:
         return "Accelerated"
+    return "On Track"
 
-    # ============================================
-    # ON TRACK
-    # ============================================
 
-    else:
-        return "On Track"
+def apply_status(df):
+    df["status"] = df["delta_finish"].apply(classify_status)
+
+    df["critical"] = np.where(
+        df["delta_finish"] > 10,
+        "Critical",
+        "Normal"
+    )
+    return df
