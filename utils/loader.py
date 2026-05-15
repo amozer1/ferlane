@@ -1,6 +1,9 @@
 import pandas as pd
 
-def load_file(file):
-    if file.name.endswith(".csv"):
-        return pd.read_csv(file)
-    return pd.read_excel(file)
+
+def load_data():
+
+    df31 = pd.read_excel("data/CL31.xlsx")
+    df32 = pd.read_excel("data/CL32.xlsx")
+
+    return df31, df32

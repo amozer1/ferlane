@@ -1,0 +1,37 @@
+.main {
+    background-color: #f4f6f9;
+}
+
+.block-container {
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+}
+
+h1, h2, h3 {
+    color: #002b5c;
+    font-family: Arial;
+}
+
+[data-testid="stSidebar"] {
+    display: none;
+}
+
+[data-testid="collapsedControl"] {
+    display: none;
+}
+
+.card {
+    background-color: white;
+    padding: 25px;
+    border-radius: 16px;
+    border: 1px solid #e1e5eb;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+.kpi {
+    background: white;
+    border-left: 5px solid #002b5c;
+    padding: 15px;
+    border-radius: 12px;
+}
