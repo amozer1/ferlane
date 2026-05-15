@@ -1,24 +1,11 @@
 import streamlit as st
+from utils.loader import load_schedule
+from components.deliverables import build_deliverables_card
 
-from utils.loader import load_programme_data
-from components.cl32_card import render_cl32_card
+st.set_page_config(layout="wide")
 
-# -----------------------------
-# CONFIG
-# -----------------------------
-st.set_page_config(page_title="FERLANE NEC Controls", layout="wide")
+st.title("Design Dashboard")
 
-st.title("FERLANE NEC Programme Controls Dashboard")
-st.caption("CL31 vs CL32 Deliverable Movement")
+cl31, cl32 = load_schedule("CL31.xlsx", "CL32.xlsx")
 
-st.divider()
-
-# -----------------------------
-# LOAD DATA
-# -----------------------------
-cl31, cl32 = load_programme_data()
-
-# -----------------------------
-# CARD 1 ONLY
-# -----------------------------
-render_cl32_card(cl31, cl32)
+build_deliverables_card(cl31, cl32)
