@@ -1,22 +1,20 @@
-import numpy as np
+# utils/analytics.py
 
-def compute_kpis(df):
-    """
-    Computes executive KPI metrics for dashboard
-    """
+import pandas as pd
 
-    total = len(df)
+def compute_kpis(df: pd.DataFrame):
+    df = df.copy()
 
-    critical = len(df[df["Status"] == "Critical"])
-    near_critical = len(df[df["Status"] == "Near Critical"])
-    on_track = len(df[df["Status"] == "On Track"])
+    if "Float" not in df.columns:
+        df["Float"] = 0
 
-    avg_float = df["Float"].replace([np.inf, -np.inf], np.nan).fillna(0).mean()
+    if "Status" not in df.columns:
+        df["Status"] = "Unknown"
 
     return {
-        "total": total,
-        "critical": critical,
-        "near_critical": near_critical,
-        "non_critical": on_track,
-        "avg_float": avg_float
+        "total": len(df),
+        "avg_float": df["Float"].mean(),
+        "critical": (df["Status"] == "Critical").sum(),
+        "near_critical": (df["Status"] == "Near Critical").sum(),
+        "non_critical": (df["Status"] == "Non Critical").sum(),
     }

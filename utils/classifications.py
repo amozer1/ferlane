@@ -1,36 +1,21 @@
-import numpy as np
+# utils/classifications.py
 
-def classify_status(df):
-    """
-    Assigns NEC programme status based on float and variance rules
-    """
+import pandas as pd
 
-    def get_status(row):
-        float_val = row.get("Float", 0)
-        variance = row.get("Variance - BL1 Finish Date", 0)
+def classify_float(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
 
-        # 🔴 Critical
-        if float_val <= 0 or variance <= -14:
+    if "Float" not in df.columns:
+        df["Float"] = 0
+
+    def classify(f):
+        if f <= 0:
             return "Critical"
-
-        # 🟡 Near Critical
-        elif float_val <= 10 or (-13 <= variance <= -5):
+        elif f <= 5:
             return "Near Critical"
+        else:
+            return "Non Critical"
 
-        # 🟢 On Track
-        elif float_val > 10 and variance > -5:
-            return "On Track"
-
-        # fallback
-        return "On Track"
-
-    df["Status"] = df.apply(get_status, axis=1)
+    df["Status"] = df["Float"].apply(classify)
 
     return df
-
-
-def classify_float(df):
-    """
-    Optional alias so your old imports don't break immediately
-    """
-    return classify_status(df)
