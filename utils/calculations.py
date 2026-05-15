@@ -1,6 +1,11 @@
-import pandas as pd
+def calculate_deltas(df):
 
-def calc_deltas(df):
-    df["delta_start"] = (df["clause 32 start"] - df["clause 31 start"]).dt.days
-    df["delta_finish"] = (df["clause 32 finish"] - df["clause 31 finish"]).dt.days
+    df["delta_start"] = (
+        df["start_32"] - df["start_31"]
+    ).dt.days
+
+    df["delta_finish"] = (
+        df["finish_32"] - df["finish_31"]
+    ).dt.days
+
     return df
