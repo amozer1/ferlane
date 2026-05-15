@@ -1,14 +1,29 @@
 import pandas as pd
-from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data"
 
-def load_schedule():
-    cl31_path = DATA_DIR / "CL31.xlsx"
-    cl32_path = DATA_DIR / "CL32.xlsx"
+def load_cl31(path: str) -> pd.DataFrame:
+    df = pd.read_excel(path)
+    df = df.rename(columns={
+        "Activity Name": "activity",
+        "Finish": "cl31_finish"
+    })
+    return df[["activity", "cl31_finish"]]
 
-    cl31 = pd.read_excel(cl31_path)
-    cl32 = pd.read_excel(cl32_path)
 
-    return cl31, cl32
+def load_cl32(path: str) -> pd.DataFrame:
+    df = pd.read_excel(path)
+    df = df.rename(columns={
+        "Activity Name": "activity",
+        "Finish": "cl32_finish",
+        "Total Float": "float"
+    })
+    return df[["activity", "cl32_finish", "float"]]
+
+
+def load_schedule(cl31_path: str, cl32_path: str):
+    cl31 = load_cl31(cl31_path)
+    cl32 = load_cl32(cl32_path)
+
+    df = pd.merge(cl31, cl32, on="activity", how="outer")
+
+    return df
