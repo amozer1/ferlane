@@ -8,13 +8,9 @@ from utils.analytics import compute_kpis
 from core.commentary_engine import generate_commentary
 
 # -----------------------------
-# PAGE CONFIG (EXECUTIVE STYLE)
+# CONFIG
 # -----------------------------
-st.set_page_config(
-    page_title="FERLANE NEC Controls",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title="FERLANE NEC Controls", layout="wide")
 
 st.markdown("""
 <style>
@@ -22,12 +18,15 @@ st.markdown("""
 header {visibility: hidden;}
 footer {visibility: hidden;}
 section[data-testid="stSidebar"] {display: none;}
-.block-container {padding-top: 1rem; padding-left: 2rem; padding-right: 2rem;}
+
+.block-container {
+    padding: 1rem 2rem 2rem 2rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # -----------------------------
-# LOAD DATA PIPELINE
+# LOAD DATA
 # -----------------------------
 cl31, cl32 = load_programme_data()
 cl32 = classify_float(cl32)
@@ -38,128 +37,100 @@ commentary = generate_commentary(cl31, cl32, kpis)
 # HEADER
 # -----------------------------
 st.title("FERLANE NEC Programme Controls Dashboard")
-st.caption("CL31 vs CL32 | NEC Clause 31 / 32 | Float & Variance Analytics")
+st.caption("CL31 vs CL32 | NEC Clause 31/32 | Programme Intelligence Layer")
 
 st.divider()
 
-# -----------------------------
-# KPI STRIP
-# -----------------------------
-col1, col2, col3, col4, col5 = st.columns(5)
+# =====================================================
+# ROW 1 — KPI + FLOAT DISTRIBUTION (SPLIT PANEL)
+# =====================================================
+col1, col2 = st.columns([1, 2])
 
-col1.metric("Total Activities", kpis["total"])
-col2.metric("Critical", kpis["critical"])
-col3.metric("Near Critical", kpis["near_critical"])
-col4.metric("Non Critical", kpis["non_critical"])
-col5.metric("Avg Float", f"{kpis['avg_float']:.1f} days")
+with col1:
+    st.subheader("Programme KPIs")
 
-st.divider()
+    a, b = st.columns(2)
+    a.metric("Total", kpis["total"])
+    b.metric("Avg Float", f"{kpis['avg_float']:.1f}")
 
-# -----------------------------
-# SCHEDULE HEALTH (CL32)
-# -----------------------------
-st.subheader("Schedule Health Overview (CL32)")
+    c, d = st.columns(2)
+    c.metric("Critical", kpis["critical"])
+    d.metric("Near Crit", kpis["near_critical"])
 
-status_counts = cl32["Status"].value_counts().reset_index()
-status_counts.columns = ["Status", "Count"]
+    st.metric("Non Critical", kpis["non_critical"])
 
-fig1 = px.bar(
-    status_counts,
-    x="Status",
-    y="Count",
-    text="Count"
-)
+with col2:
+    st.subheader("Float Distribution")
 
-st.plotly_chart(fig1, use_container_width=True)
+    fig_float = px.histogram(cl32, x="Float", nbins=25)
+    st.plotly_chart(fig_float, use_container_width=True)
 
 st.divider()
 
-# -----------------------------
-# FLOAT DISTRIBUTION
-# -----------------------------
-st.subheader("Float Distribution")
+# =====================================================
+# ROW 2 — STATUS + VARIANCE
+# =====================================================
+col3, col4 = st.columns(2)
 
-fig2 = px.histogram(
-    cl32,
-    x="Float",
-    nbins=20
-)
+with col3:
+    st.subheader("Activity Status Split")
 
-st.plotly_chart(fig2, use_container_width=True)
+    status = cl32["Status"].value_counts().reset_index()
+    status.columns = ["Status", "Count"]
 
-st.divider()
+    fig_status = px.pie(status, names="Status", values="Count")
+    st.plotly_chart(fig_status, use_container_width=True)
 
-# -----------------------------
-# BASELINE VARIANCE (CL31 vs CL32)
-# -----------------------------
-st.subheader("Baseline Variance (CL31 vs CL32)")
+with col4:
+    st.subheader("Baseline Variance (CL31 vs CL32)")
 
-fig3 = go.Figure()
+    fig_var = go.Figure()
 
-if "Finish" in cl31.columns and "Finish" in cl32.columns:
-    fig3.add_trace(go.Scatter(
-        y=cl31["Finish"],
-        name="CL31 Baseline",
-        line=dict(width=3)
-    ))
+    if "Finish" in cl31.columns and "Finish" in cl32.columns:
+        fig_var.add_trace(go.Scatter(y=cl31["Finish"], name="CL31"))
+        fig_var.add_trace(go.Scatter(y=cl32["Finish"], name="CL32"))
 
-    fig3.add_trace(go.Scatter(
-        y=cl32["Finish"],
-        name="CL32 Current",
-        line=dict(width=3)
-    ))
-
-st.plotly_chart(fig3, use_container_width=True)
+    st.plotly_chart(fig_var, use_container_width=True)
 
 st.divider()
 
-# -----------------------------
-# CRITICAL ACTIVITIES
-# -----------------------------
-st.subheader("Critical Activities Register")
+# =====================================================
+# ROW 3 — CRITICAL + LOOKAHEAD TABLE (FULL WIDTH SPLIT)
+# =====================================================
+col5, col6 = st.columns(2)
 
-critical_df = cl32[cl32["Status"] == "Critical"]
+with col5:
+    st.subheader("Critical Path Activities")
 
-st.dataframe(
-    critical_df,
-    use_container_width=True,
-    height=300
-)
+    critical = cl32[cl32["Status"] == "Critical"]
 
-st.divider()
+    st.dataframe(critical, height=400, use_container_width=True)
 
-# -----------------------------
-# LOOKAHEAD (TOP RISKS)
-# -----------------------------
-st.subheader("Lookahead Window (Top Risk Activities)")
+with col6:
+    st.subheader("Lookahead (Top Risk Activities)")
 
-lookahead = cl32.sort_values("Float").head(15)
+    lookahead = cl32.sort_values("Float").head(15)
 
-st.dataframe(
-    lookahead,
-    use_container_width=True,
-    height=350
-)
+    st.dataframe(lookahead, height=400, use_container_width=True)
 
 st.divider()
 
-# -----------------------------
-# NEC COMMENTARY ENGINE
-# -----------------------------
-st.subheader("NEC Programme Commentary (Clause 31 / 32 Insight)")
+# =====================================================
+# ROW 4 — NEC COMMENTARY (FULL WIDTH)
+# =====================================================
+st.subheader("NEC Programme Commentary (Clause 31 / 32)")
 
 st.info(commentary)
 
 st.divider()
 
-# -----------------------------
-# EXPORT
-# -----------------------------
-st.subheader("Export Programme Data")
+# =====================================================
+# ROW 5 — EXPORT PANEL
+# =====================================================
+st.subheader("Export Controls")
 
 st.download_button(
-    "Download CL32 Programme",
+    "Download CL32 Programme Data",
     cl32.to_csv(index=False),
-    file_name="FERLANE_CL32_export.csv",
-    mime="text/csv"
+    file_name="FERLANE_CL32.csv"
 )
