@@ -1,18 +1,16 @@
-import numpy as np
+def classify_status(row):
 
-def classify_float(df):
+    delta = row["Delta_Days"]
+    float_change = row["Float_Change"]
 
-    if "Float" not in df.columns:
-        df["Float"] = np.random.randint(0, 20, len(df))
+    if delta >= 14 or float_change <= -10:
+        return "Critical"
 
-    def status(f):
-        if f <= 0:
-            return "Critical"
-        elif f <= 5:
-            return "Near Critical"
-        else:
-            return "Non Critical"
+    elif 5 <= delta < 14:
+        return "At Risk"
 
-    df["Status"] = df["Float"].apply(status)
+    elif delta <= 4 and float_change > -10:
+        return "On Track"
 
-    return df
+    else:
+        return "On Track"

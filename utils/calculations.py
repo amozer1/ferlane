@@ -1,30 +1,8 @@
-import numpy as np
+import pandas as pd
+
+def calculate_delta(row):
+    return (row["CL32 Finish"] - row["CL31 Finish"]).days
 
 
-def calculate_deltas(df):
-
-    df["delta_start_days"] = (
-        df["start_32"] - df["start_31"]
-    ).dt.days
-
-    df["delta_finish_days"] = (
-        df["finish_32"] - df["finish_31"]
-    ).dt.days
-
-    df["float_band"] = np.select(
-        [
-            df["total float_32"] < 0,
-            (df["total float_32"] >= 0) & (df["total float_32"] <= 10),
-            (df["total float_32"] > 10) & (df["total float_32"] <= 20),
-            (df["total float_32"] > 20)
-        ],
-        [
-            "Critical",
-            "Near Critical",
-            "Low Float",
-            "Non Critical"
-        ],
-        default="Unknown"
-    )
-
-    return df
+def calculate_float_change(row):
+    return row["Total Float_cl32"] - row["Total Float_cl31"]
