@@ -38,8 +38,8 @@ CL32_FILE = DATA_FOLDER / "CL32.xlsx"
 
 try:
 
-    df31 = pd.read_csv(CL31_FILE)
-    df32 = pd.read_csv(CL32_FILE)
+    df31 = pd.read_excel(CL31_FILE)
+    df32 = pd.read_excel(CL32_FILE)
 
     # ==================================================
     # CLEAN DATA
