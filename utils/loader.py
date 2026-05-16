@@ -1,40 +1,45 @@
 import pandas as pd
+import re
 
 
-def _load_excel(file_path: str) -> pd.DataFrame:
-    df = pd.read_excel(file_path)
-
-    # Clean column names (fixes KeyError issues)
+def load_excel(path: str):
+    df = pd.read_excel(path)
     df.columns = df.columns.str.strip()
-
     return df
 
 
-def _standardise_dates(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Ensures all schedule date fields are proper datetime.
-    Safe conversion for CL31/CL32 exports.
-    """
+def is_deliverable_row(row):
+    name = str(row.get("Activity Name", "")).strip()
 
-    date_columns = [
-        "Start",
-        "Finish",
-        "BL1 Start",
-        "BL1 Finish"
+    if name == "" or name.lower() == "nan":
+        return False
+
+    # reject pure structural rows
+    reject = [
+        "design", "procurement", "construction",
+        "milestones", "key dates", "programme",
+        "deliverables"
     ]
 
-    for col in date_columns:
-        if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors="coerce")
+    if name.lower() in reject:
+        return False
 
-    return df
+    # reject rows that are just timing containers (no meaning)
+    if len(name) < 5:
+        return False
+
+    # must have some scheduling info
+    if pd.isna(row.get("Finish")) and pd.isna(row.get("Start")):
+        return False
+
+    return True
 
 
-def load_cl31(path="data/CL31-February.xlsx"):
-    df = _load_excel(path)
-    return _standardise_dates(df)
+def clean_date(value):
+    if pd.isna(value):
+        return pd.NaT
 
+    value = str(value)
+    value = re.sub(r"[A\*]", "", value).strip()
 
-def load_cl32(path="data/CL32-May.xlsx"):
-    df = _load_excel(path)
-    return _standardise_dates(df)
+    return pd.to_datetime(value, errors="coerce")

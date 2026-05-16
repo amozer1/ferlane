@@ -1,149 +1,81 @@
 import pandas as pd
-import numpy as np
+from utils.loader import is_deliverable_row, clean_date
 
 
-# ----------------------------
-# 1. Identify valid deliverables
-# ----------------------------
-def is_deliverable(activity_name: str) -> bool:
-    """
-    Rules to decide if row is a deliverable.
-    """
+def build_deliverable_comparison(df31, df32):
 
-    if pd.isna(activity_name):
-        return False
+    # -------------------------
+    # STEP 1: LOCI FILTERING
+    # -------------------------
+    df31 = df31[df31.apply(is_deliverable_row, axis=1)].copy()
+    df32 = df32[df32.apply(is_deliverable_row, axis=1)].copy()
 
-    name = str(activity_name).strip()
+    # -------------------------
+    # STEP 2: KEEP ORIGINAL NAME (NO TRANSFORM)
+    # -------------------------
+    df31["Deliverable"] = df31["Activity Name"]
+    df32["Deliverable"] = df32["Activity Name"]
 
-    if name == "":
-        return False
+    # -------------------------
+    # STEP 3: CLEAN DATES ONLY
+    # -------------------------
+    df31["CL31 Finish"] = df31["Finish"].apply(clean_date)
+    df32["CL32 Finish"] = df32["Finish"].apply(clean_date)
 
-    # Exclusions
-    exclude_keywords = [
-        "[GET]",
-        "Mobilisation",
-        "Review Information",
-        "Meeting",
-        "Response",
-        "Key Dates",
-        "Contract",
-        "Site Visit",
-        "Model",
-        "Build Terrain",
-        "BIM Set Up"
-    ]
-
-    for kw in exclude_keywords:
-        if kw.lower() in name.lower():
-            return False
-
-    # Must contain meaningful output indicator
-    output_keywords = [
-        "Design",
-        "Drawing",
-        "Model",
-        "Assessment",
-        "Report",
-        "Schedule",
-        "Specification",
-        "Calculation",
-        "Pack",
-        "Plan",
-        "Details",
-        "Layout",
-        "GA",
-        "Concept",
-        "Design Pack"
-    ]
-
-    return any(k.lower() in name.lower() for k in output_keywords)
-
-
-# ----------------------------
-# 2. Extract deliverables only
-# ----------------------------
-def extract_deliverables(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-
-    df = df[df["Activity Name"].apply(is_deliverable)]
-
-    return df
-
-
-# ----------------------------
-# 3. Build CL31 vs CL32 comparison
-# ----------------------------
-def build_comparison(cl31: pd.DataFrame, cl32: pd.DataFrame) -> pd.DataFrame:
-
-    # Standardise keys
-    cl31 = cl31.copy()
-    cl32 = cl32.copy()
-
-    cl31["Activity Name"] = cl31["Activity Name"].astype(str).str.strip()
-    cl32["Activity Name"] = cl32["Activity Name"].astype(str).str.strip()
-
-    # Extract deliverables
-    d31 = extract_deliverables(cl31)
-    d32 = extract_deliverables(cl32)
-
-    # Merge
+    # -------------------------
+    # STEP 4: MERGE
+    # -------------------------
     merged = pd.merge(
-        d31,
-        d32,
-        on="Activity Name",
-        how="outer",
-        suffixes=("_CL31", "_CL32")
+        df31[["Deliverable", "CL31 Finish"]],
+        df32[["Deliverable", "CL32 Finish"]],
+        on="Deliverable",
+        how="outer"
     )
 
-    # Dates
-    merged["CL31 Finish"] = merged.get("Finish_CL31")
-    merged["CL32 Finish"] = merged.get("Finish_CL32")
-
-    # Delta calculation
+    # -------------------------
+    # STEP 5: DELTA
+    # -------------------------
     merged["Delta (Days)"] = (
-        (merged["CL32 Finish"] - merged["CL31 Finish"]).dt.days
-    )
+        merged["CL32 Finish"] - merged["CL31 Finish"]
+    ).dt.days
 
-    # Change Type
-    def classify(row):
-        if pd.isna(row["CL31 Finish"]) and pd.notna(row["CL32 Finish"]):
+    # -------------------------
+    # STEP 6: CHANGE TYPE
+    # -------------------------
+    def change_type(r):
+        if pd.isna(r["CL31 Finish"]) and pd.notna(r["CL32 Finish"]):
             return "NEW"
-        elif pd.notna(row["CL31 Finish"]) and pd.isna(row["CL32 Finish"]):
+        if pd.notna(r["CL31 Finish"]) and pd.isna(r["CL32 Finish"]):
             return "REMOVED"
-        elif pd.isna(row["Delta (Days)"]):
-            return "UNKNOWN"
-        elif row["Delta (Days)"] > 0:
+        if pd.notna(r["Delta (Days)"]) and r["Delta (Days)"] > 0:
             return "DELAYED"
-        elif row["Delta (Days)"] < 0:
+        if pd.notna(r["Delta (Days)"]) and r["Delta (Days)"] < 0:
             return "ACCELERATED"
-        else:
-            return "UNCHANGED"
+        return "UNCHANGED"
 
-    merged["Change Type"] = merged.apply(classify, axis=1)
+    merged["Change Type"] = merged.apply(change_type, axis=1)
 
-    # Status
-    def status(row):
-        if row["Change Type"] == "DELAYED":
-            return "⚠️ Slipped"
-        elif row["Change Type"] == "ACCELERATED":
-            return "🟢 Improved"
-        elif row["Change Type"] == "NEW":
-            return "🆕 Added"
-        elif row["Change Type"] == "REMOVED":
-            return "❌ Removed"
-        else:
-            return "🟡 Stable"
+    # -------------------------
+    # STEP 7: OUTPUT FORMAT ONLY
+    # -------------------------
+    merged["CL31 Finish"] = pd.to_datetime(merged["CL31 Finish"]).dt.strftime("%d-%b-%Y")
+    merged["CL32 Finish"] = pd.to_datetime(merged["CL32 Finish"]).dt.strftime("%d-%b-%Y")
 
-    merged["Status / Comment"] = merged.apply(status, axis=1)
+    merged["Delta (Days)"] = merged["Delta (Days)"].fillna("—")
 
-    # Final structure
-    final = merged[[
-        "Activity Name",
+    merged["Status / Comment"] = merged["Change Type"].map({
+        "DELAYED": "Shifted later, coordination required",
+        "ACCELERATED": "Moved earlier",
+        "NEW": "Added in CL32",
+        "REMOVED": "Dropped from CL32",
+        "UNCHANGED": "Stable"
+    })
+
+    return merged[[
+        "Deliverable",
         "CL31 Finish",
         "CL32 Finish",
         "Delta (Days)",
         "Change Type",
         "Status / Comment"
     ]]
-
-    return final.sort_values(by="Change Type")
