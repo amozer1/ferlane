@@ -3,7 +3,7 @@ from components.deliverables import build_deliverable_summary
 
 
 # -----------------------------
-# LOAD + CLEAN FILES
+# LOAD FILES (AUTO OR UPLOAD)
 # -----------------------------
 def load_and_prepare_files(file31, file32):
 
@@ -22,16 +22,13 @@ def load_and_prepare_files(file31, file32):
 def clean_dataframe(df):
     df = df.copy()
 
-    # Standardise column names (safe guard)
     df.columns = [c.strip() for c in df.columns]
 
-    # Ensure required columns exist
-    required_cols = ["Activity Name", "Finish"]
-    for col in required_cols:
-        if col not in df.columns:
-            df[col] = None
+    if "Activity Name" not in df.columns:
+        df["Activity Name"] = None
+    if "Finish" not in df.columns:
+        df["Finish"] = None
 
-    # Clean finish dates (remove A, *, spaces)
     df["Finish"] = (
         df["Finish"]
         .astype(str)
@@ -39,20 +36,18 @@ def clean_dataframe(df):
         .str.strip()
     )
 
-    # Convert to datetime
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-    # Remove invalid rows (your requirement)
+    # remove invalid dates (your rule)
     df = df.dropna(subset=["Finish"])
 
-    # Create Deliverable (LEVEL = summary grouping)
     df["Deliverable"] = df["Activity Name"].apply(extract_deliverable)
 
     return df
 
 
 # -----------------------------
-# EXTRACT DELIVERABLE
+# DELIVERABLE EXTRACTION
 # -----------------------------
 def extract_deliverable(name):
 
@@ -61,26 +56,25 @@ def extract_deliverable(name):
 
     name = str(name).strip()
 
-    # Ignore task-level IDs
-    if "-" in name[:15] and any(x.isdigit() for x in name[:10]):
+    # ignore task-level IDs
+    if "-" in name[:15] and any(char.isdigit() for char in name[:10]):
         return None
 
-    # Heuristic: treat summary rows as deliverables
-    summary_keywords = [
+    keywords = [
         "Design",
         "Modelling",
         "Review",
-        "Dates",
         "Deliverables",
         "Shaft",
         "EICA",
         "Mechanical",
         "Civils",
         "Process",
-        "Geotechnical"
+        "Geotechnical",
+        "Dates"
     ]
 
-    for k in summary_keywords:
+    for k in keywords:
         if k.lower() in name.lower():
             return name
 
@@ -88,7 +82,7 @@ def extract_deliverable(name):
 
 
 # -----------------------------
-# COMPARE CL31 vs CL32
+# COMPARISON LOGIC
 # -----------------------------
 def prepare_comparison_df(df31, df32):
 
@@ -97,12 +91,10 @@ def prepare_comparison_df(df31, df32):
 
     merged = cl31.merge(cl32, on="Deliverable", how="outer")
 
-    # Delta
     merged["Delta (Days)"] = (
         (merged["CL32 Finish"] - merged["CL31 Finish"]).dt.days
     )
 
-    # Change Type
     def change_type(r):
         if pd.isna(r["CL31 Finish"]):
             return "NEW"
@@ -114,7 +106,6 @@ def prepare_comparison_df(df31, df32):
 
     merged["Change Type"] = merged.apply(change_type, axis=1)
 
-    # Status
     def status(r):
         if r["Change Type"] == "NEW":
             return "Added in CL32"
@@ -133,8 +124,7 @@ def prepare_comparison_df(df31, df32):
 
     merged["Status / Comment"] = merged.apply(status, axis=1)
 
-    # Final formatting
-    merged = merged[
+    return merged[
         [
             "Deliverable",
             "CL31 Finish",
@@ -144,5 +134,3 @@ def prepare_comparison_df(df31, df32):
             "Status / Comment"
         ]
     ]
-
-    return merged
