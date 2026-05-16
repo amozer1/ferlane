@@ -1,19 +1,21 @@
 import streamlit as st
-import pandas as pd
 from utils.loader import load_programme
-from components.deliverables import extract_deliverables, build_deliverables_card
+from components.deliverables import build_deliverables_card
 
 st.set_page_config(layout="wide")
 
 st.title("Deliverable Tracker Dashboard")
 
 # -------------------------
-# AUTO FILE PATHS
+# FILE PATHS
 # -------------------------
 CL31_PATH = "data/CL31.xlsx"
 CL32_PATH = "data/CL32.xlsx"
 
 
+# -------------------------
+# CACHE LOAD
+# -------------------------
 @st.cache_data
 def load_data():
     cl31_df = load_programme(CL31_PATH)
@@ -22,14 +24,20 @@ def load_data():
 
 
 try:
+    # -------------------------
+    # LOAD DATASETS
+    # -------------------------
     cl31_df, cl32_df = load_data()
 
-    df = pd.concat([cl31_df, cl32_df], ignore_index=True)
+    # -------------------------
+    # BUILD COMPARISON TABLE
+    # -------------------------
+    final_df = build_deliverables_card(cl31_df, cl32_df)
 
-    deliverables_df = extract_deliverables(df)
-    final_df = build_deliverables_card(deliverables_df)
-
-    st.subheader("Schedule Summary")
+    # -------------------------
+    # DISPLAY
+    # -------------------------
+    st.subheader("Schedule Summary (CL31 vs CL32)")
 
     st.dataframe(final_df, use_container_width=True, hide_index=True)
 
