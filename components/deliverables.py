@@ -1,32 +1,80 @@
 import pandas as pd
 
 
-def build_comparison(df31, df32):
-    key_col = "Activity ID"
-    finish_col = "Finish"
+# =========================
+# STEP 1: IDENTIFY DELIVERABLES
+# =========================
+def extract_deliverables(df):
 
-    # Keep only relevant columns
-    df31 = df31[[key_col, finish_col]].copy()
-    df32 = df32[[key_col, finish_col]].copy()
+    df = df.copy()
 
-    df31 = df31.rename(columns={finish_col: "CL31 Finish"})
-    df32 = df32.rename(columns={finish_col: "CL32 Finish"})
+    # Ensure required columns exist
+    if "Activity Name" not in df.columns:
+        raise ValueError("Missing Activity Name column")
+    if "Finish" not in df.columns:
+        raise ValueError("Missing Finish column")
 
-    # Merge full outer (important for NEW + REMOVED detection)
-    df = pd.merge(df31, df32, on=key_col, how="outer")
+    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-    # Convert dates
-    df["CL31 Finish"] = pd.to_datetime(df["CL31 Finish"], errors="coerce")
-    df["CL32 Finish"] = pd.to_datetime(df["CL32 Finish"], errors="coerce")
+    # -------------------------
+    # RULES TO IDENTIFY DELIVERABLES
+    # -------------------------
+    keywords = [
+        "design", "report", "submission", "pack",
+        "drawing", "manual", "model", "approval",
+        "freeze", "register", "specification", "plan"
+    ]
+
+    def is_deliverable(name):
+        if pd.isna(name):
+            return False
+        name_lower = name.lower()
+
+        # exclude obvious activities
+        exclude = [
+            "mobilisation", "review", "workshop",
+            "procurement", "installation", "lead",
+            "governance", "construction"
+        ]
+
+        if any(x in name_lower for x in exclude):
+            return False
+
+        return any(k in name_lower for k in keywords)
+
+
+    df = df[df["Activity Name"].apply(is_deliverable)].copy()
+
+    # Rename into deliverable name
+    df = df.rename(columns={"Activity Name": "Deliverable"})
+
+    # Keep latest finish per deliverable group
+    df = df.groupby("Deliverable", as_index=False)["Finish"].max()
+
+    return df
+
+
+# =========================
+# STEP 2: COMPARE CL31 vs CL32
+# =========================
+def compare_deliverables(df31, df32):
+
+    df31 = extract_deliverables(df31)
+    df32 = extract_deliverables(df32)
+
+    df31 = df31.rename(columns={"Finish": "CL31 Finish"})
+    df32 = df32.rename(columns={"Finish": "CL32 Finish"})
+
+    df = pd.merge(df31, df32, on="Deliverable", how="outer")
 
     # Delta
     df["Delta (Days)"] = (df["CL32 Finish"] - df["CL31 Finish"]).dt.days
 
 
     # =========================
-    # Change classification
+    # CHANGE TYPE LOGIC
     # =========================
-    def classify(row):
+    def change(row):
         a = row["CL31 Finish"]
         b = row["CL32 Finish"]
 
@@ -44,34 +92,34 @@ def build_comparison(df31, df32):
         return "UNKNOWN"
 
 
-    df["Change Type"] = df.apply(classify, axis=1)
+    df["Change Type"] = df.apply(change, axis=1)
+
 
     # =========================
-    # Comments engine
+    # COMMENTS
     # =========================
     def comment(row):
         if row["Change Type"] == "DELAYED":
-            return f"Shifted later by {row['Delta (Days)']} days, coordination required"
-        elif row["Change Type"] == "AHEAD":
-            return f"Pulled earlier by {abs(row['Delta (Days)'])} days"
-        elif row["Change Type"] == "UNCHANGED":
+            return "Shifted later, coordination required"
+        if row["Change Type"] == "AHEAD":
+            return "Pulled earlier, programme improvement"
+        if row["Change Type"] == "UNCHANGED":
             return "Stable"
-        elif row["Change Type"] == "NEW":
+        if row["Change Type"] == "NEW":
             return "Added scope in CL32"
-        elif row["Change Type"] == "REMOVED":
+        if row["Change Type"] == "REMOVED":
             return "Dropped from CL32"
         return "Check data"
 
 
     df["Status / Comment"] = df.apply(comment, axis=1)
 
-    # Final output
-    output = df[[
+    # Final format
+    return df[[
+        "Deliverable",
         "CL31 Finish",
         "CL32 Finish",
         "Delta (Days)",
         "Change Type",
         "Status / Comment"
     ]]
-
-    return output
