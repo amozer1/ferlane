@@ -1,40 +1,30 @@
 import streamlit as st
-
 from utils.loader import load_cl31, load_cl32
-from components.deliverables import build_deliverables_report
+from components.deliverables import build_deliverable_delta
 
 st.set_page_config(layout="wide")
 
-st.title("Deliverables Comparison (CL31 vs CL32)")
+st.title("CL31 vs CL32 Deliverable Delta Tracker")
 
-cl31 = load_cl31()
-cl32 = load_cl32()
+df31 = load_cl31()
+df32 = load_cl32()
 
-df = build_deliverables_report(cl31, cl32)
+result = build_deliverable_delta(df31, df32)
 
 # -----------------------------
-# COLOUR RULES
+# COLOUR LOGIC (NO applymap error)
 # -----------------------------
-def color_status(val):
-    if val == "DELAYED":
-        return "background-color:#ffcccc"
-    if val == "AHEAD":
-        return "background-color:#cce5ff"
-    if val == "UNCHANGED":
-        return "background-color:#e6ffe6"
-    if val == "NEW":
-        return "background-color:#fff3cd"
-    if val == "REMOVED":
-        return "background-color:#d6d6d6"
-    return ""
+def color_rows(row):
+    if row["Change Type"] == "DELAYED":
+        return ["background-color: #ffcccc"] * len(row)
+    if row["Change Type"] == "ADVANCED":
+        return ["background-color: #cce5ff"] * len(row)
+    if row["Change Type"] == "NEW":
+        return ["background-color: #d4edda"] * len(row)
+    if row["Change Type"] == "REMOVED":
+        return ["background-color: #f8d7da"] * len(row)
+    return [""] * len(row)
 
-styled = (
-    df.style
-    .map(color_status, subset=["Status"])
-    .set_properties(**{
-        "font-size": "14px",
-        "text-align": "left"
-    })
-)
+styled = result.style.apply(color_rows, axis=1)
 
 st.dataframe(styled, use_container_width=True)
