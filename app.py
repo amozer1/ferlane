@@ -1,101 +1,26 @@
 import streamlit as st
-from utils.loader import load_cl31, load_cl32
-from components.deliverables import build_design_control_table
+import pandas as pd
+from utils.loader import load_programme_data, prepare_comparison_df
+from components.deliverables import render_deliverables_table
 
-# -------------------------
-# PAGE CONFIG
-# -------------------------
-st.set_page_config(layout="wide")
-st.title("Design Management Control Dashboard (CL31 vs CL32)")
+st.set_page_config(page_title="CL31 vs CL32 Comparison", layout="wide")
 
-# -------------------------
-# LOAD DATA
-# -------------------------
-cl31 = load_cl31("data/CL31.xlsx")
-cl32 = load_cl32("data/CL32.xlsx")
+st.title("📊 CL31 vs CL32 Programme Comparison Dashboard")
 
-# -------------------------
-# BUILD CONTROL TABLE
-# -------------------------
-df = build_design_control_table(cl31, cl32)
+# File uploads
+cl31_file = st.file_uploader("Upload CL31 Programme File", type=["xlsx", "csv"])
+cl32_file = st.file_uploader("Upload CL32 Programme File", type=["xlsx", "csv"])
 
-# -------------------------
-# SAFETY CHECK (CRITICAL FIX)
-# prevents KeyError like 'Discipline'
-# -------------------------
-if "Status" not in df.columns:
-    df["Status"] = "🟡 No Update"
+if cl31_file and cl32_file:
+    # Load data
+    df31 = load_programme_data(cl31_file)
+    df32 = load_programme_data(cl32_file)
 
-if "Discipline" not in df.columns:
-    df["Discipline"] = "Unknown"
+    # Build comparison dataset
+    comparison_df = prepare_comparison_df(df31, df32)
 
-# -------------------------
-# FILTER OPTIONS (SAFE)
-# -------------------------
-status_options = sorted(df["Status"].dropna().unique())
-discipline_options = sorted(df["Discipline"].dropna().unique())
+    # Render table
+    render_deliverables_table(comparison_df)
 
-# -------------------------
-# FILTER UI
-# -------------------------
-col1, col2 = st.columns(2)
-
-with col1:
-    status_filter = st.multiselect(
-        "Filter Status",
-        options=status_options,
-        default=status_options
-    )
-
-with col2:
-    discipline_filter = st.multiselect(
-        "Filter Discipline",
-        options=discipline_options,
-        default=discipline_options
-    )
-
-# -------------------------
-# APPLY FILTERS
-# -------------------------
-filtered_df = df[
-    df["Status"].isin(status_filter) &
-    df["Discipline"].isin(discipline_filter)
-]
-
-# -------------------------
-# COLOUR STYLING
-# -------------------------
-def style(row):
-    status = str(row.get("Status", ""))
-
-    if "🔴" in status:
-        return ["background-color:#ffcccc"] * len(row)
-    if "🟠" in status:
-        return ["background-color:#ffe5cc"] * len(row)
-    if "🟡" in status:
-        return ["background-color:#fff7cc"] * len(row)
-    if "🟢" in status:
-        return ["background-color:#e6ffe6"] * len(row)
-
-    return [""] * len(row)
-
-# -------------------------
-# DISPLAY TABLE
-# -------------------------
-st.dataframe(
-    filtered_df.style.apply(style, axis=1),
-    use_container_width=True,
-    height=700
-)
-
-# -------------------------
-# QUICK SUMMARY (MEETING VALUE)
-# -------------------------
-st.markdown("### 📊 Summary")
-
-colA, colB, colC, colD = st.columns(4)
-
-colA.metric("Total Activities", len(df))
-colB.metric("🔴 Critical", (df["Status"] == "🔴 Critical Delay").sum())
-colC.metric("🟠 At Risk", (df["Status"] == "🟠 At Risk").sum())
-colD.metric("🟢 Ahead", (df["Status"] == "🟢 Ahead").sum())
+else:
+    st.info("Please upload both CL31 and CL32 programme files to continue.")
