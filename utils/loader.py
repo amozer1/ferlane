@@ -1,111 +1,161 @@
 import pandas as pd
 import numpy as np
+import re
 
 
-# ---------------------------
-# DATE CLEANING
-# ---------------------------
-def parse_date(val):
+# ----------------------------
+# CLEAN DATE FUNCTION
+# ----------------------------
+def clean_date(val):
     if pd.isna(val):
-        return pd.NaT
+        return np.nan
 
     val = str(val).strip()
 
-    # remove artifacts like * or A
-    val = val.replace("*", "").replace(" A", "").strip()
+    # remove A, *, trailing spaces
+    val = re.sub(r"[A\*]", "", val).strip()
 
-    return pd.to_datetime(val, errors="coerce")
-
-
-def format_date(val):
-    if pd.isna(val):
-        return None
-    return pd.to_datetime(val).strftime("%d-%b-%Y")
+    return pd.to_datetime(val, errors="coerce", dayfirst=True)
 
 
-# ---------------------------
-# LOAD DATA
-# ---------------------------
-def load_file(file_path):
-    df = pd.read_excel(file_path)
+# ----------------------------
+# DISCIPLINE CLASSIFIER
+# ----------------------------
+def classify_discipline(name):
+    name = str(name).lower()
 
+    if any(x in name for x in ["civ", "shaft", "pipe", "mh", "benching", "slab"]):
+        return "Civils / Structural"
+
+    if any(x in name for x in ["mechanical", "pump", "ga drawing", "rising", "mec"]):
+        return "Mechanical"
+
+    if any(x in name for x in ["eica", "electrical", "instrument", "telemetry", "dno"]):
+        return "EICA"
+
+    if any(x in name for x in ["process", "hazop", "p&id", "control"]):
+        return "Process"
+
+    if any(x in name for x in ["geo", "geotechnical", "gdr"]):
+        return "Geotechnical"
+
+    return "Other"
+
+
+# ----------------------------
+# LOAD AND NORMALISE FILE
+# ----------------------------
+def load_programme(file):
+
+    df = pd.read_excel(file)
     df.columns = [c.strip() for c in df.columns]
 
-    # standardise expected columns
-    df = df.rename(columns={
-        "Activity Name": "Deliverable",
-        "Finish": "Finish"
-    })
+    # find deliverable + finish column
+    deliverable_col = "Activity Name"
+    finish_col = [c for c in df.columns if "Finish" in c][-1]
+
+    df = df[[deliverable_col, finish_col]].copy()
+    df.columns = ["Deliverable", "Finish"]
 
     df["Deliverable"] = df["Deliverable"].astype(str).str.strip()
+    df["Finish"] = df["Finish"].apply(clean_date)
 
-    df["Finish"] = df["Finish"].apply(parse_date)
+    # REMOVE blank finish rows (your requirement)
+    df = df[df["Finish"].notna()]
 
-    # remove invalid rows
-    df = df[~df["Deliverable"].isin(["nan", "", "None"])]
-    df = df.dropna(subset=["Deliverable"])
-
-    # keep last occurrence if duplicates exist
-    df = df.sort_values("Finish").groupby("Deliverable", as_index=False).last()
+    # REMOVE duplicates (CRITICAL FIX)
+    df = df.drop_duplicates(subset=["Deliverable"], keep="last")
 
     return df
 
 
-# ---------------------------
-# COMPARE FUNCTION
-# ---------------------------
-def prepare_comparison_df(df31, df32):
+# ----------------------------
+# MAIN COMPARISON ENGINE
+# ----------------------------
+def prepare_comparison_df(file31, file32):
 
-    cl31 = df31.set_index("Deliverable")["Finish"]
-    cl32 = df32.set_index("Deliverable")["Finish"]
+    df31 = load_programme(file31)
+    df32 = load_programme(file32)
 
-    all_keys = sorted(set(cl31.index).union(set(cl32.index)))
+    merged = pd.merge(
+        df31,
+        df32,
+        on="Deliverable",
+        how="outer",
+        suffixes=("_CL31", "_CL32")
+    )
 
-    rows = []
+    merged.rename(columns={
+        "Finish_CL31": "CL31 Finish",
+        "Finish_CL32": "CL32 Finish"
+    }, inplace=True)
 
-    for d in all_keys:
-        v31 = cl31.get(d, pd.NaT)
-        v32 = cl32.get(d, pd.NaT)
+    # ----------------------------
+    # CHANGE TYPE
+    # ----------------------------
+    def change_type(row):
+        if pd.isna(row["CL31 Finish"]) and pd.notna(row["CL32 Finish"]):
+            return "NEW"
+        if pd.notna(row["CL31 Finish"]) and pd.isna(row["CL32 Finish"]):
+            return "REMOVED"
+        if row["CL31 Finish"] != row["CL32 Finish"]:
+            return "DELAYED"
+        return "UNCHANGED"
 
-        # skip if both empty
-        if pd.isna(v31) and pd.isna(v32):
-            continue
 
-        # determine change type
-        if pd.notna(v31) and pd.isna(v32):
-            change = "REMOVED"
-        elif pd.isna(v31) and pd.notna(v32):
-            change = "NEW"
-        else:
-            change = "MODIFIED" if v31 != v32 else "UNCHANGED"
+    merged["Change Type"] = merged.apply(change_type, axis=1)
 
-        # delta
-        if pd.notna(v31) and pd.notna(v32):
-            delta = (v32 - v31).days
-        else:
-            delta = None
+    # ----------------------------
+    # DELTA
+    # ----------------------------
+    def delta(row):
+        if pd.isna(row["CL31 Finish"]) or pd.isna(row["CL32 Finish"]):
+            return np.nan
+        return (row["CL32 Finish"] - row["CL31 Finish"]).days
 
-        # status
-        if change == "NEW":
-            status = "Added in CL32"
-        elif change == "REMOVED":
-            status = "Dropped from CL32"
-        elif change == "UNCHANGED":
-            status = "No change"
-        else:
-            status = (
-                "Delayed" if delta and delta > 0 else
-                "Early" if delta and delta < 0 else
-                "No change"
-            )
 
-        rows.append({
-            "Deliverable": d,
-            "CL31 Finish": format_date(v31),
-            "CL32 Finish": format_date(v32),
-            "Delta (Days)": delta,
-            "Change Type": change,
-            "Status / Comment": status
-        })
+    merged["Delta (Days)"] = merged.apply(delta, axis=1)
 
-    return pd.DataFrame(rows)
+
+    # ----------------------------
+    # COMMENTS
+    # ----------------------------
+    def comment(row):
+        if row["Change Type"] == "NEW":
+            return "Added in CL32"
+        if row["Change Type"] == "REMOVED":
+            return "Dropped from CL32"
+        if row["Change Type"] == "DELAYED":
+            return "Shifted vs CL31 baseline"
+        return "No change"
+
+
+    merged["Status / Comment"] = merged.apply(comment, axis=1)
+
+    # ----------------------------
+    # DISCIPLINE
+    # ----------------------------
+    merged["Discipline"] = merged["Deliverable"].apply(classify_discipline)
+
+    # ----------------------------
+    # FORMAT DATES (FINAL UI FORMAT)
+    # ----------------------------
+    for col in ["CL31 Finish", "CL32 Finish"]:
+        merged[col] = merged[col].dt.strftime("%d-%b-%Y")
+
+    # ----------------------------
+    # FINAL ORDER
+    # ----------------------------
+    merged = merged[
+        [
+            "Deliverable",
+            "CL31 Finish",
+            "CL32 Finish",
+            "Delta (Days)",
+            "Change Type",
+            "Status / Comment",
+            "Discipline"
+        ]
+    ]
+
+    return merged

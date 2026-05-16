@@ -1,31 +1,22 @@
 import streamlit as st
-from utils.loader import load_file, prepare_comparison_df
-from components.deliverables import render_table, render_summary
+from utils.loader import prepare_comparison_df
+from components.deliverables import render_table, render_structured_view
 
-st.set_page_config(page_title="CL31 vs CL32 Tracker", layout="wide")
+st.set_page_config(layout="wide")
 
-st.title("📊 Deliverable Comparison Dashboard (CL31 vs CL32)")
+st.title("📊 CL Programme Comparison Dashboard")
 
+# NEW FILE NAMES
+CL31_FILE = "data/CL31-February.xlsx"
+CL32_FILE = "data/CL-May.xlsx"
 
-# ---------------------------
-# AUTO LOAD FILES (NO UPLOAD)
-# ---------------------------
-CL31_PATH = "data/CL31.xlsx"
-CL32_PATH = "data/CL32.xlsx"
+# AUTO LOAD
+df = prepare_comparison_df(CL31_FILE, CL32_FILE)
 
+tab1, tab2 = st.tabs(["📊 Comparison Table", "🧭 Structured View"])
 
-df31 = load_file(CL31_PATH)
-df32 = load_file(CL32_PATH)
+with tab1:
+    render_table(df)
 
-
-# ---------------------------
-# PROCESS
-# ---------------------------
-comparison_df = prepare_comparison_df(df31, df32)
-
-
-# ---------------------------
-# DISPLAY
-# ---------------------------
-render_summary(comparison_df)
-render_table(comparison_df)
+with tab2:
+    render_structured_view(df)
