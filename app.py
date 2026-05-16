@@ -1,45 +1,61 @@
 import streamlit as st
-from utils.loader import load_programmes
-from components.deliverables import build_deliverables
+from utils.loader import load_cl31, load_cl32
+from components.deliverables import build_comparison
 
-st.set_page_config(page_title="CL31 vs CL32 Dashboard", layout="wide")
+st.set_page_config(page_title="Programme Delta Tracker", layout="wide")
 
-st.title("📊 Programme Deliverables Comparison (CL31 vs CL32)")
+st.title("CL31 vs CL32 Programme Comparison")
 
-# FILE PATHS
-CL31_FILE = "data/CL31-February.xlsx"
-CL32_FILE = "data/CL32-May.xlsx"
+# Load data
+df31 = load_cl31()
+df32 = load_cl32()
 
-# LOAD DATA
-df31 = load_programmes(CL31_FILE)
-df32 = load_programmes(CL32_FILE)
+# Build comparison
+df = build_comparison(df31, df32)
 
-# BUILD TABLE
-deliverables_df = build_deliverables(df31, df32)
+# =========================
+# FILTERS
+# =========================
+col1, col2, col3 = st.columns(3)
 
-# FINAL DISPLAY FORMAT
-deliverables_df = deliverables_df[
-    [
-        "Activity Name",
-        "CL31 Finish",
-        "CL32 Finish",
-        "Delta (Days)",
+with col1:
+    change_filter = st.multiselect(
         "Change Type",
-        "Status / Comment"
-    ]
-]
+        ["DELAYED", "AHEAD", "UNCHANGED", "NEW", "REMOVED"],
+        default=["DELAYED", "AHEAD", "NEW", "REMOVED"]
+    )
 
-# TABLE
-st.subheader("Deliverables Comparison Table")
-st.dataframe(deliverables_df, use_container_width=True)
+filtered_df = df[df["Change Type"].isin(change_filter)]
 
+# =========================
 # METRICS
-col1, col2, col3, col4 = st.columns(4)
+# =========================
+st.subheader("Summary")
 
-col1.metric("Total Deliverables", len(deliverables_df))
-col2.metric("Delayed", (deliverables_df["Change Type"] == "DELAYED").sum())
-col3.metric("New", (deliverables_df["Change Type"] == "NEW").sum())
-col4.metric("Removed", (deliverables_df["Change Type"] == "REMOVED").sum())
+c1, c2, c3, c4, c5 = st.columns(5)
 
-st.divider()
-st.caption("CL31 (February baseline) vs CL32 (May update)")
+c1.metric("Total Items", len(df))
+c2.metric("Delayed", (df["Change Type"] == "DELAYED").sum())
+c3.metric("Ahead", (df["Change Type"] == "AHEAD").sum())
+c4.metric("New", (df["Change Type"] == "NEW").sum())
+c5.metric("Removed", (df["Change Type"] == "REMOVED").sum())
+
+# =========================
+# MAIN TABLE
+# =========================
+st.subheader("Delta Comparison Table")
+
+st.dataframe(
+    filtered_df.sort_values(by="Delta (Days)", ascending=False),
+    use_container_width=True
+)
+
+# =========================
+# DOWNLOAD
+# =========================
+st.download_button(
+    "Download Comparison",
+    data=filtered_df.to_csv(index=False),
+    file_name="CL31_vs_CL32_Delta.csv",
+    mime="text/csv"
+)

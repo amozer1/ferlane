@@ -1,105 +1,77 @@
 import pandas as pd
-import numpy as np
 
 
-# ---------- NORMALISE ----------
-def _extract(df, cl_label):
-    df = df.copy()
+def build_comparison(df31, df32):
+    key_col = "Activity ID"
+    finish_col = "Finish"
 
-    df = df.rename(columns={
-        "Activity Name": "Deliverable",
-        "Finish": f"{cl_label} Finish"
-    })
+    # Keep only relevant columns
+    df31 = df31[[key_col, finish_col]].copy()
+    df32 = df32[[key_col, finish_col]].copy()
 
-    return df[["Deliverable", f"{cl_label} Finish"]]
+    df31 = df31.rename(columns={finish_col: "CL31 Finish"})
+    df32 = df32.rename(columns={finish_col: "CL32 Finish"})
 
+    # Merge full outer (important for NEW + REMOVED detection)
+    df = pd.merge(df31, df32, on=key_col, how="outer")
 
-# ---------- DELTA SAFE CALC ----------
-def safe_delta(cl31, cl32):
-    if pd.isna(cl31) or pd.isna(cl32):
-        return np.nan
-    return (cl32 - cl31).days
-
-
-# ---------- CLASSIFICATION ----------
-def classify(row):
-    if pd.isna(row["CL31 Finish"]) and pd.notna(row["CL32 Finish"]):
-        return "NEW"
-
-    if pd.notna(row["CL31 Finish"]) and pd.isna(row["CL32 Finish"]):
-        return "REMOVED"
-
-    if pd.isna(row["Delta (Days)"]):
-        return "UNKNOWN"
-
-    if row["Delta (Days)"] == 0:
-        return "UNCHANGED"
-
-    return "DELAYED" if row["Delta (Days)"] > 0 else "EARLY"
-
-
-# ---------- COMMENT ENGINE ----------
-def comment(row):
-    if row["Change Type"] == "NEW":
-        return "Added scope in CL32"
-
-    if row["Change Type"] == "REMOVED":
-        return "Dropped from CL32"
-
-    if row["Change Type"] == "UNCHANGED":
-        return "Stable"
-
-    if row["Change Type"] == "DELAYED":
-        if row["Delta (Days)"] <= 14:
-            return "Minor slip, gateway impact"
-        return "Shifted later, coordination required"
-
-    if row["Change Type"] == "EARLY":
-        return "Pulled earlier than baseline"
-
-    return "Review required"
-
-
-# ---------- MAIN BUILDER ----------
-def build_deliverables(df31, df32):
-
-    df31 = _extract(df31, "CL31")
-    df32 = _extract(df32, "CL32")
-
-    df = pd.merge(df31, df32, on="Deliverable", how="outer")
-
-    # ensure datetime
+    # Convert dates
     df["CL31 Finish"] = pd.to_datetime(df["CL31 Finish"], errors="coerce")
     df["CL32 Finish"] = pd.to_datetime(df["CL32 Finish"], errors="coerce")
 
-    # delta
-    df["Delta (Days)"] = df.apply(
-        lambda r: safe_delta(r["CL31 Finish"], r["CL32 Finish"]),
-        axis=1
-    )
+    # Delta
+    df["Delta (Days)"] = (df["CL32 Finish"] - df["CL31 Finish"]).dt.days
 
-    # type
+
+    # =========================
+    # Change classification
+    # =========================
+    def classify(row):
+        a = row["CL31 Finish"]
+        b = row["CL32 Finish"]
+
+        if pd.isna(a) and pd.notna(b):
+            return "NEW"
+        if pd.notna(a) and pd.isna(b):
+            return "REMOVED"
+        if pd.notna(a) and pd.notna(b):
+            if row["Delta (Days)"] == 0:
+                return "UNCHANGED"
+            elif row["Delta (Days)"] > 0:
+                return "DELAYED"
+            else:
+                return "AHEAD"
+        return "UNKNOWN"
+
+
     df["Change Type"] = df.apply(classify, axis=1)
 
-    # comment
+    # =========================
+    # Comments engine
+    # =========================
+    def comment(row):
+        if row["Change Type"] == "DELAYED":
+            return f"Shifted later by {row['Delta (Days)']} days, coordination required"
+        elif row["Change Type"] == "AHEAD":
+            return f"Pulled earlier by {abs(row['Delta (Days)'])} days"
+        elif row["Change Type"] == "UNCHANGED":
+            return "Stable"
+        elif row["Change Type"] == "NEW":
+            return "Added scope in CL32"
+        elif row["Change Type"] == "REMOVED":
+            return "Dropped from CL32"
+        return "Check data"
+
+
     df["Status / Comment"] = df.apply(comment, axis=1)
 
-    # format output (final UI clean format)
-    def fmt(x):
-        return "—" if pd.isna(x) else x.strftime("%d-%b-%y")
-
-    df["CL31 Finish"] = df["CL31 Finish"].apply(fmt)
-    df["CL32 Finish"] = df["CL32 Finish"].apply(fmt)
-
-    df["Delta (Days)"] = df["Delta (Days)"].apply(
-        lambda x: "—" if pd.isna(x) else int(x)
-    )
-
-    return df[[
-        "Deliverable",
+    # Final output
+    output = df[[
         "CL31 Finish",
         "CL32 Finish",
         "Delta (Days)",
         "Change Type",
         "Status / Comment"
-    ]].sort_values("Change Type")
+    ]]
+
+    return output
