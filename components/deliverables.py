@@ -1,29 +1,45 @@
+import pandas as pd
 import streamlit as st
 
 
+def format_date(x):
+    if pd.isna(x):
+        return ""
+    return pd.to_datetime(x).strftime("%d-%b-%y")
+
+
+def build_status(delta):
+    if pd.isna(delta):
+        return "No data"
+    if delta == 0:
+        return "Stable"
+    if delta > 30:
+        return "Major delay"
+    if delta > 0:
+        return "Delayed"
+    return "Ahead"
+
+
 def render_deliverables_table(df):
-    """
-    Render CL31 vs CL32 deliverables comparison table
-    """
 
-    st.subheader("📦 Deliverables Comparison")
+    df = df.copy()
 
-    # Clean display formatting
-    display_df = df.copy()
+    df["CL31 Finish"] = df["CL31 Finish"].apply(format_date)
+    df["CL32 Finish"] = df["CL32 Finish"].apply(format_date)
+
+    df["Status / Comment"] = df["Delta (Days)"].apply(build_status)
+
+    df = df.rename(columns={
+        "Delta (Days)": "Delta (Days)"
+    })
 
     st.dataframe(
-        display_df,
-        use_container_width=True,
-        hide_index=True
+        df[[
+            "Deliverable",
+            "CL31 Finish",
+            "CL32 Finish",
+            "Delta (Days)",
+            "Status / Comment"
+        ]],
+        use_container_width=True
     )
-
-    # Optional summary metrics
-    col1, col2, col3 = st.columns(3)
-
-    total = len(df)
-    delayed = len(df[df["Status / Comment"].str.contains("Delay|Slippage", na=False)])
-    maintained = len(df[df["Status / Comment"] == "Maintained"])
-
-    col1.metric("Total Deliverables", total)
-    col2.metric("Delayed", delayed)
-    col3.metric("Maintained", maintained)
