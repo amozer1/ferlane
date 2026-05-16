@@ -6,32 +6,72 @@ import pandas as pd
 
 
 def clean_columns(df):
+
     df.columns = [str(c).strip() for c in df.columns]
+
+    return df
+
+
+def clean_dates(df):
+
+    date_columns = [
+        "Start",
+        "Finish",
+        "BL1 Start",
+        "BL1 Finish"
+    ]
+
+    for col in date_columns:
+
+        if col in df.columns:
+
+            df[col] = pd.to_datetime(
+                df[col],
+                errors="coerce"
+            )
+
+    return df
+
+
+def clean_float(df):
+
+    if "Total Float" in df.columns:
+
+        df["Total Float"] = pd.to_numeric(
+            df["Total Float"],
+            errors="coerce"
+        ).fillna(0)
+
     return df
 
 
 def load_schedule(cl31_path, cl32_path):
 
-    # -------------------------
-    # LOAD EXCEL FILES
-    # -------------------------
+    # ---------------------------------------------------
+    # LOAD FILES
+    # ---------------------------------------------------
+
     cl31 = pd.read_excel(cl31_path)
     cl32 = pd.read_excel(cl32_path)
 
-    # -------------------------
-    # CLEAN COLUMNS
-    # -------------------------
+    # ---------------------------------------------------
+    # CLEAN
+    # ---------------------------------------------------
+
     cl31 = clean_columns(cl31)
     cl32 = clean_columns(cl32)
 
-    # -------------------------
-    # DATE CONVERSION
-    # -------------------------
-    for col in ["Start", "Finish", "BL1 Start", "BL1 Finish"]:
-        if col in cl31.columns:
-            cl31[col] = pd.to_datetime(cl31[col], errors="coerce")
+    cl31 = clean_dates(cl31)
+    cl32 = clean_dates(cl32)
 
-        if col in cl32.columns:
-            cl32[col] = pd.to_datetime(cl32[col], errors="coerce")
+    cl31 = clean_float(cl31)
+    cl32 = clean_float(cl32)
+
+    # ---------------------------------------------------
+    # REMOVE EMPTY ACTIVITY NAMES
+    # ---------------------------------------------------
+
+    cl31 = cl31.dropna(subset=["Activity Name"])
+    cl32 = cl32.dropna(subset=["Activity Name"])
 
     return cl31, cl32

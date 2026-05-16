@@ -9,6 +9,7 @@ import streamlit as st
 # ---------------------------------------------------
 # STATUS LOGIC
 # ---------------------------------------------------
+
 def status_logic(delta, float_change):
 
     if delta >= 20 and float_change <= -10:
@@ -20,59 +21,52 @@ def status_logic(delta, float_change):
     elif float_change < 0:
         return "🟡 At Risk"
 
-    else:
-        return "🟢 On Track"
+    return "🟢 On Track"
 
 
 # ---------------------------------------------------
-# FIND FINISH DATE
+# FORMAT DATE
 # ---------------------------------------------------
-def get_finish(df, activity_name):
 
-    row = df[df["Activity Name"] == activity_name]
+def format_date(value):
 
-    if len(row) == 0:
-        return None
+    if pd.isna(value):
+        return "-"
 
-    return row.iloc[0]["Finish"]
+    return pd.to_datetime(value).strftime("%d-%b-%y")
 
 
 # ---------------------------------------------------
-# FIND FLOAT
+# CLEAN TEXT
 # ---------------------------------------------------
-def get_float(df, activity_name):
 
-    row = df[df["Activity Name"] == activity_name]
+def clean_text(value):
 
-    if len(row) == 0:
-        return 0
+    if pd.isna(value):
+        return ""
 
-    if "Total Float" not in row.columns:
-        return 0
-
-    value = row.iloc[0]["Total Float"]
-
-    try:
-        return float(value)
-    except:
-        return 0
+    return str(value).strip().lower()
 
 
 # ---------------------------------------------------
 # MAIN CARD
 # ---------------------------------------------------
+
 def build_deliverables_card(cl31, cl32):
+
+    # ---------------------------------------------------
+    # CARD STYLE
+    # ---------------------------------------------------
 
     st.markdown("""
     <style>
 
     .deliverable-card {
         background-color: #111827;
-        padding: 22px;
+        padding: 24px;
         border-radius: 18px;
         border: 1px solid #2d3748;
-        margin-top: 10px;
-        margin-bottom: 20px;
+        margin-top: 15px;
     }
 
     .card-title {
@@ -96,103 +90,149 @@ def build_deliverables_card(cl31, cl32):
     )
 
     # ---------------------------------------------------
-    # DELIVERABLE MAPPING
+    # CLEAN ACTIVITY NAMES
     # ---------------------------------------------------
-    deliverables = [
 
-        {
-            "name": "3D Modelling",
-            "cl31": "3D Modelling",
-            "cl32": "3D Modelling"
-        },
+    cl31["activity_clean"] = (
+        cl31["Activity Name"]
+        .astype(str)
+        .apply(clean_text)
+    )
 
-        {
-            "name": "Concept Shaft Design",
-            "cl31": "Shaft design inc. benching, cover slab, pipe entry/exit",
-            "cl32": "Concept Shaft Design"
-        },
+    cl32["activity_clean"] = (
+        cl32["Activity Name"]
+        .astype(str)
+        .apply(clean_text)
+    )
 
-        {
-            "name": "Scope Freeze",
-            "cl31": "Submission of Outline Design Pack",
-            "cl32": "Outline Design Scope Freeze (Minimum Requirements)"
-        },
+    # ---------------------------------------------------
+    # MERGE DIRECTLY USING ACTIVITY NAME
+    # ---------------------------------------------------
 
-        {
-            "name": "Outline Submission",
-            "cl31": "Final Submission",
-            "cl32": "Outline Design Submission"
-        }
-    ]
+    merged = pd.merge(
+
+        cl31[
+            [
+                "activity_clean",
+                "Activity Name",
+                "Finish"
+            ]
+        ],
+
+        cl32[
+            [
+                "activity_clean",
+                "Activity Name",
+                "Finish",
+                "Total Float"
+            ]
+        ],
+
+        on="activity_clean",
+        how="inner",
+        suffixes=("_CL31", "_CL32")
+    )
+
+    # ---------------------------------------------------
+    # REMOVE DUPLICATES
+    # ---------------------------------------------------
+
+    merged = merged.drop_duplicates(
+        subset=["activity_clean"]
+    )
+
+    # ---------------------------------------------------
+    # BUILD OUTPUT
+    # ---------------------------------------------------
 
     rows = []
 
-    # ---------------------------------------------------
-    # BUILD ROWS
-    # ---------------------------------------------------
-    for item in deliverables:
+    for _, row in merged.iterrows():
 
-        cl31_finish = get_finish(cl31, item["cl31"])
-        cl32_finish = get_finish(cl32, item["cl32"])
+        finish31 = row["Finish_CL31"]
+        finish32 = row["Finish_CL32"]
 
-        float_change = get_float(cl32, item["cl32"])
+        float_change = row.get(
+            "Total Float",
+            0
+        )
 
-        # -------------------------
+        # -----------------------------------------------
         # DELTA
-        # -------------------------
-        if pd.notna(cl31_finish) and pd.notna(cl32_finish):
+        # -----------------------------------------------
+
+        if pd.notna(finish31) and pd.notna(finish32):
 
             delta = (
-                pd.to_datetime(cl32_finish)
-                - pd.to_datetime(cl31_finish)
+                pd.to_datetime(finish32)
+                - pd.to_datetime(finish31)
             ).days
 
         else:
             delta = 0
 
-        # -------------------------
+        # -----------------------------------------------
         # STATUS
-        # -------------------------
-        status = status_logic(delta, float_change)
+        # -----------------------------------------------
 
-        # -------------------------
-        # FORMAT DATES
-        # -------------------------
-        if pd.notna(cl31_finish):
-            cl31_finish = pd.to_datetime(cl31_finish).strftime("%d-%b-%y")
-        else:
-            cl31_finish = "-"
+        status = status_logic(
+            delta,
+            float_change
+        )
 
-        if pd.notna(cl32_finish):
-            cl32_finish = pd.to_datetime(cl32_finish).strftime("%d-%b-%y")
-        else:
-            cl32_finish = "-"
+        # -----------------------------------------------
+        # APPEND
+        # -----------------------------------------------
 
         rows.append({
 
-            "Deliverable": item["name"],
+            "Deliverable":
+            row["Activity Name_CL32"],
 
-            "CL31 Finish": cl31_finish,
+            "CL31 Finish":
+            format_date(finish31),
 
-            "CL32 Finish": cl32_finish,
+            "CL32 Finish":
+            format_date(finish32),
 
-            "Δ Finish (Days)": f"{delta:+}",
+            "Δ Finish (Days)":
+            f"{delta:+}",
 
-            "Float Change": int(float_change),
+            "Float Change":
+            int(float_change),
 
-            "Status": status
+            "Status":
+            status
         })
 
     # ---------------------------------------------------
-    # DATAFRAME
+    # OUTPUT DF
     # ---------------------------------------------------
+
     out = pd.DataFrame(rows)
+
+    # ---------------------------------------------------
+    # SORT
+    # ---------------------------------------------------
+
+    if len(out) > 0:
+
+        out = out.sort_values(
+            by="Deliverable"
+        )
+
+    # ---------------------------------------------------
+    # TABLE
+    # ---------------------------------------------------
 
     st.dataframe(
         out,
         use_container_width=True,
         hide_index=True,
-        height=260
+        height=700
     )
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True
+    )
