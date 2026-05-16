@@ -19,7 +19,7 @@ def render_pie(result):
 
     fig, ax = plt.subplots()
     ax.pie(values, labels=labels, autopct="%1.0f%%", colors=colors)
-    ax.set_title("Programme Health Overview")
+    ax.set_title("Programme Overview")
 
     st.subheader("Programme Status (Pie Chart)")
     st.pyplot(fig)
