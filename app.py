@@ -1,49 +1,38 @@
 import streamlit as st
 import pandas as pd
-
 from utils.loader import load_programme
 from components.deliverables import extract_deliverables, build_deliverables_card
-
 
 st.set_page_config(layout="wide")
 
 st.title("Deliverable Tracker Dashboard")
 
-
 # -------------------------
-# FILE LOADERS
+# AUTO FILE PATHS
 # -------------------------
-cl31_file = st.file_uploader("Upload CL31", type=["xlsx"])
-cl32_file = st.file_uploader("Upload CL32", type=["xlsx"])
+CL31_PATH = "data/CL31.xlsx"
+CL32_PATH = "data/CL32.xlsx"
 
 
-if cl31_file and cl32_file:
+@st.cache_data
+def load_data():
+    cl31_df = load_programme(CL31_PATH)
+    cl32_df = load_programme(CL32_PATH)
+    return cl31_df, cl32_df
 
-    cl31_df = load_programme(cl31_file)
-    cl32_df = load_programme(cl32_file)
 
-    # -------------------------
-    # COMBINE
-    # -------------------------
+try:
+    cl31_df, cl32_df = load_data()
+
     df = pd.concat([cl31_df, cl32_df], ignore_index=True)
 
-    # -------------------------
-    # EXTRACT DELIVERABLES
-    # -------------------------
     deliverables_df = extract_deliverables(df)
-
     final_df = build_deliverables_card(deliverables_df)
 
-    # -------------------------
-    # DISPLAY SINGLE CARD TABLE
-    # -------------------------
     st.subheader("Schedule Summary")
 
-    st.dataframe(
-        final_df,
-        use_container_width=True,
-        hide_index=True
-    )
+    st.dataframe(final_df, use_container_width=True, hide_index=True)
 
-else:
-    st.info("Upload both CL31 and CL32 files to continue.")
+except FileNotFoundError as e:
+    st.error(f"Missing file: {e}")
+    st.info("Ensure CL31.xlsx and CL32.xlsx are inside the /data folder.")

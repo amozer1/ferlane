@@ -2,39 +2,33 @@ import pandas as pd
 
 
 def extract_deliverables(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Deliverables = Activity Name ONLY (no hierarchy, no mapping)
-    """
-
-    deliverables = df.copy()
-
-    deliverables = deliverables.dropna(subset=["Activity Name"])
-
-    deliverables["Activity Name"] = deliverables["Activity Name"].astype(str).str.strip()
-
-    return deliverables
+    df = df.copy()
+    df = df.dropna(subset=["Activity Name"])
+    df["Activity Name"] = df["Activity Name"].astype(str).str.strip()
+    return df
 
 
 def build_deliverables_card(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Build comparison table:
-    CL logic must already be handled in loader
-    """
 
     out = df.copy()
 
-    # variance calculation (simple)
     out["Δ Finish (Days)"] = (
         pd.to_datetime(out["Finish"], dayfirst=True)
         - pd.to_datetime(out["BL Finish"], dayfirst=True)
     ).dt.days
 
-    out["Status"] = out["Δ Finish (Days)"].apply(lambda x:
-        "🔴 Critical" if x > 20 else
-        "🔴 Delayed" if x > 0 else
-        "🟡 At Risk" if x > -10 else
-        "🟢 On Track"
-    )
+    def status(x):
+        if pd.isna(x):
+            return "⚪ Unknown"
+        if x > 20:
+            return "🔴 Critical"
+        if x > 0:
+            return "🔴 Delayed"
+        if x < -10:
+            return "🟢 Ahead"
+        return "🟡 At Risk"
+
+    out["Status"] = out["Δ Finish (Days)"].apply(status)
 
     return out[[
         "Activity Name",
