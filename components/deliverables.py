@@ -3,16 +3,16 @@ import numpy as np
 
 def build_deliverables_report(cl31, cl32):
 
+    cl31 = cl31.rename(columns={"Finish": "CL31 Finish"})
+    cl32 = cl32.rename(columns={"Finish": "CL32 Finish"})
+
     df = pd.merge(
-        cl31[["Activity", "CL31 Finish"]],
-        cl32[["Activity", "CL32 Finish"]],
+        cl31,
+        cl32,
         on="Activity",
         how="outer"
     )
 
-    # -----------------------------
-    # CHANGE TYPE
-    # -----------------------------
     def change_type(row):
         if pd.isna(row["CL31 Finish"]) and pd.notna(row["CL32 Finish"]):
             return "NEW"
@@ -22,19 +22,13 @@ def build_deliverables_report(cl31, cl32):
 
     df["Change Type"] = df.apply(change_type, axis=1)
 
-    # -----------------------------
-    # DELTA
-    # -----------------------------
-    def delta_days(row):
+    def delta(row):
         if row["Change Type"] != "COMPARE":
             return np.nan
         return (row["CL32 Finish"] - row["CL31 Finish"]).days
 
-    df["Delta (Days)"] = df.apply(delta_days, axis=1)
+    df["Delta (Days)"] = df.apply(delta, axis=1)
 
-    # -----------------------------
-    # STATUS
-    # -----------------------------
     def status(row):
         if row["Change Type"] == "NEW":
             return "NEW"
@@ -50,26 +44,18 @@ def build_deliverables_report(cl31, cl32):
 
     df["Status"] = df.apply(status, axis=1)
 
-    # -----------------------------
-    # COMMENT
-    # -----------------------------
     def comment(row):
-        if row["Status"] == "DELAYED":
-            return "Shifted later, coordination required"
-        if row["Status"] == "AHEAD":
-            return "Pulled earlier, potential float gain"
-        if row["Status"] == "UNCHANGED":
-            return "Stable"
-        if row["Status"] == "NEW":
-            return "Added scope in CL32"
-        if row["Status"] == "REMOVED":
-            return "Dropped from CL32"
-        return ""
+        return {
+            "DELAYED": "Shifted later, coordination required",
+            "AHEAD": "Pulled earlier, potential float gain",
+            "UNCHANGED": "Stable",
+            "NEW": "Added scope in CL32",
+            "REMOVED": "Dropped from CL32"
+        }.get(row["Status"], "")
 
     df["Status / Comment"] = df.apply(comment, axis=1)
 
-    # Clean ordering
-    df = df[[
+    return df[[
         "Activity",
         "CL31 Finish",
         "CL32 Finish",
@@ -78,5 +64,3 @@ def build_deliverables_report(cl31, cl32):
         "Change Type",
         "Status / Comment"
     ]]
-
-    return df
