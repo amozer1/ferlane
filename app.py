@@ -2,211 +2,139 @@
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 
-from loader import load_cl31, load_cl32
-from deliverables import build_deliverables
-
-
-# ---------------------------------------------------
-# PAGE CONFIG
-# ---------------------------------------------------
+from loader import load_schedule
+from deliverables import build_comparison_table
 
 st.set_page_config(
-    page_title="CL31 vs CL32 Deliverables",
+    page_title="FERLANE Deliverables Tracker",
     layout="wide"
 )
 
-st.title("📊 CL31 vs CL32 Deliverable Comparison")
+st.title("FERLANE Design Deliverables Tracker")
 
-
-# ---------------------------------------------------
+# =========================
 # LOAD DATA
-# ---------------------------------------------------
+# =========================
 
-cl31 = load_cl31("data/CL31-February.xlsx")
-cl32 = load_cl32("data/CL32-May.xlsx")
+cl31 = load_schedule("data/CL31-February.xlsx")
+cl32 = load_schedule("data/CL32-May.xlsx")
 
-df = build_deliverables(cl31, cl32)
+comparison_df = build_comparison_table(cl31, cl32)
 
-
-# ---------------------------------------------------
+# =========================
 # SIDEBAR FILTERS
-# ---------------------------------------------------
+# =========================
 
 st.sidebar.header("Filters")
 
-change_types = st.sidebar.multiselect(
+discipline_filter = st.sidebar.multiselect(
+    "Discipline",
+    sorted(comparison_df["Discipline"].dropna().unique()),
+    default=sorted(comparison_df["Discipline"].dropna().unique())
+)
+
+change_filter = st.sidebar.multiselect(
     "Change Type",
-    options=sorted(df["Change Type"].dropna().unique()),
-    default=sorted(df["Change Type"].dropna().unique())
+    sorted(comparison_df["Change Type"].dropna().unique()),
+    default=sorted(comparison_df["Change Type"].dropna().unique())
 )
 
-search = st.sidebar.text_input(
-    "Search Deliverable"
-)
-
-float_filter = st.sidebar.selectbox(
+status_filter = st.sidebar.multiselect(
     "Float Status",
-    [
-        "All",
-        "Critical (<0)",
-        "Near Critical (0-10)",
-        "Healthy (>10)"
-    ]
+    sorted(comparison_df["Float Status"].dropna().unique()),
+    default=sorted(comparison_df["Float Status"].dropna().unique())
 )
 
+search = st.sidebar.text_input("Search Deliverable")
 
-# ---------------------------------------------------
-# APPLY FILTERS
-# ---------------------------------------------------
+# =========================
+# FILTER DATA
+# =========================
 
-filtered = df.copy()
+filtered_df = comparison_df[
+    comparison_df["Discipline"].isin(discipline_filter)
+]
 
-filtered = filtered[
-    filtered["Change Type"].isin(change_types)
+filtered_df = filtered_df[
+    filtered_df["Change Type"].isin(change_filter)
+]
+
+filtered_df = filtered_df[
+    filtered_df["Float Status"].isin(status_filter)
 ]
 
 if search:
-    filtered = filtered[
-        filtered["Deliverable"].str.contains(
-            search,
-            case=False,
-            na=False
-        )
+    filtered_df = filtered_df[
+        filtered_df["Deliverable"]
+        .str.contains(search, case=False, na=False)
     ]
 
-if float_filter == "Critical (<0)":
-    filtered = filtered[filtered["Float"] < 0]
+# =========================
+# METRICS
+# =========================
 
-elif float_filter == "Near Critical (0-10)":
-    filtered = filtered[
-        (filtered["Float"] >= 0) &
-        (filtered["Float"] <= 10)
-    ]
+col1, col2, col3, col4, col5 = st.columns(5)
 
-elif float_filter == "Healthy (>10)":
-    filtered = filtered[filtered["Float"] > 10]
-
-
-# ---------------------------------------------------
-# KPI CARDS
-# ---------------------------------------------------
-
-st.subheader("Programme Summary")
-
-c1, c2, c3, c4, c5 = st.columns(5)
-
-c1.metric(
+col1.metric(
     "Total Deliverables",
-    len(df)
+    len(filtered_df)
 )
 
-c2.metric(
+col2.metric(
     "Delayed",
-    (df["Change Type"] == "DELAYED").sum()
+    len(filtered_df[filtered_df["Change Type"] == "DELAYED"])
 )
 
-c3.metric(
-    "Early",
-    (df["Change Type"] == "EARLY").sum()
+col3.metric(
+    "Accelerated",
+    len(filtered_df[filtered_df["Change Type"] == "ACCELERATED"])
 )
 
-c4.metric(
+col4.metric(
+    "Critical",
+    len(filtered_df[filtered_df["Float Status"] == "Critical"])
+)
+
+col5.metric(
     "New",
-    (df["Change Type"] == "NEW").sum()
+    len(filtered_df[filtered_df["Change Type"] == "NEW"])
 )
 
-c5.metric(
-    "Removed",
-    (df["Change Type"] == "REMOVED").sum()
-)
-
-
-# ---------------------------------------------------
+# =========================
 # TABLE STYLING
-# ---------------------------------------------------
+# =========================
 
 def row_colour(row):
 
-    change = row["Change Type"]
+    if row["Change Type"] == "DELAYED":
+        return ["background-color: #ffcccc"] * len(row)
 
-    if change == "DELAYED":
-        return ["background-color: #ffdddd"] * len(row)
+    elif row["Change Type"] == "ACCELERATED":
+        return ["background-color: #ccffcc"] * len(row)
 
-    elif change == "EARLY":
-        return ["background-color: #ddffdd"] * len(row)
+    elif row["Change Type"] == "NEW":
+        return ["background-color: #cce5ff"] * len(row)
 
-    elif change == "NEW":
-        return ["background-color: #ddeeff"] * len(row)
-
-    elif change == "REMOVED":
-        return ["background-color: #eeeeee"] * len(row)
-
-    elif change == "UNCHANGED":
-        return ["background-color: #fff8d6"] * len(row)
+    elif row["Change Type"] == "REMOVED":
+        return ["background-color: #ffe0b3"] * len(row)
 
     return [""] * len(row)
 
-
-def delta_colour(val):
-
-    if pd.isna(val):
-        return ""
-
-    if val > 0:
-        return "color: red; font-weight: bold"
-
-    elif val < 0:
-        return "color: green; font-weight: bold"
-
-    return "color: grey"
-
-
-def float_colour(val):
-
-    if pd.isna(val):
-        return ""
-
-    if val < 0:
-        return "color: red; font-weight: bold"
-
-    elif val <= 10:
-        return "color: orange; font-weight: bold"
-
-    return "color: green; font-weight: bold"
-
-
-styled = (
-    filtered.style
+styled_df = (
+    filtered_df
+    .style
     .apply(row_colour, axis=1)
-    .map(delta_colour, subset=["Delta (Days)"])
-    .map(float_colour, subset=["Float"])
 )
 
+# =========================
+# DISPLAY TABLE
+# =========================
 
-# ---------------------------------------------------
-# TABLE
-# ---------------------------------------------------
-
-st.subheader("Deliverables Comparison")
+st.subheader("Deliverables Comparison Register")
 
 st.dataframe(
-    styled,
+    styled_df,
     use_container_width=True,
-    height=700
-)
-
-
-# ---------------------------------------------------
-# DOWNLOAD
-# ---------------------------------------------------
-
-csv = filtered.to_csv(index=False).encode("utf-8")
-
-st.download_button(
-    label="⬇ Download CSV",
-    data=csv,
-    file_name="deliverable_comparison.csv",
-    mime="text/csv"
+    height=750
 )
