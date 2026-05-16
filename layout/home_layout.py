@@ -12,14 +12,14 @@ def render_home(result):
     col1, col2 = st.columns([1, 1])
 
     # =========================
-    # LEFT CARD
+    # LEFT CARD (PIE)
     # =========================
     with col1:
 
         st.markdown("""
         <div class="dashboard-card">
             <div class="card-title">
-                📊 Programme Health
+                📊 Programme Update
             </div>
         """, unsafe_allow_html=True)
 
@@ -28,30 +28,23 @@ def render_home(result):
         st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # RIGHT CARD
+    # RIGHT CARD (EMPTY FOR NOW)
     # =========================
     with col2:
 
         st.markdown("""
         <div class="dashboard-card">
             <div class="card-title">
-                📈 Programme KPIs
+                📌 Upcoming Dashboard Section
             </div>
         """, unsafe_allow_html=True)
 
-        kpi1, kpi2 = st.columns(2)
-        kpi3, kpi4 = st.columns(2)
-
-        kpi1.metric("Total", len(result))
-        kpi2.metric("NEW", (result["Change Type"] == "NEW").sum())
-
-        kpi3.metric("Delayed", (result["Change Type"] == "DELAYED").sum())
-        kpi4.metric("Early", (result["Change Type"] == "EARLY").sum())
+        st.info("Reserved for milestone tracker, float analysis or variance trends.")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # BOTTOM TABLE CARD
+    # TABLE CARD
     # =========================
     st.markdown("""
     <div class="dashboard-card">
