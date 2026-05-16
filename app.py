@@ -1,71 +1,50 @@
 import streamlit as st
 
-from utils import loader
-from components.deliverables import compare_deliverables
+from utils.loader import load_cl31, load_cl32
+from components.deliverables import build_deliverables_report
 
-st.set_page_config(page_title="Deliverable Tracker", layout="wide")
+st.set_page_config(layout="wide")
 
-st.title("📊 Deliverable Comparison (CL31 vs CL32)")
+st.title("Deliverables Comparison (CL31 vs CL32)")
 
+cl31 = load_cl31()
+cl32 = load_cl32()
 
-# =========================
-# LOAD DATA
-# =========================
-df31 = loader.load_cl31()
-df32 = loader.load_cl32()
+df = build_deliverables_report(cl31, cl32)
 
+# -----------------------------
+# COLOUR LOGIC
+# -----------------------------
+def color_status(val):
+    if val == "DELAYED":
+        return "background-color: #ffcccc; color: black;"
+    if val == "AHEAD":
+        return "background-color: #cce5ff; color: black;"
+    if val == "UNCHANGED":
+        return "background-color: #e6ffe6; color: black;"
+    if val == "NEW":
+        return "background-color: #fff3cd; color: black;"
+    if val == "REMOVED":
+        return "background-color: #d6d6d6; color: black;"
+    return ""
 
-# =========================
-# PROCESS
-# =========================
-df = compare_deliverables(df31, df32)
+def color_delta(val):
+    if pd.isna(val):
+        return ""
+    if val > 0:
+        return "color: red; font-weight: bold;"
+    if val < 0:
+        return "color: green; font-weight: bold;"
+    return "color: black;"
 
-
-# =========================
-# FILTERS
-# =========================
-st.sidebar.header("Filters")
-
-change_filter = st.sidebar.multiselect(
-    "Change Type",
-    ["DELAYED", "AHEAD", "UNCHANGED", "NEW", "REMOVED"],
-    default=["DELAYED", "NEW", "REMOVED", "AHEAD"]
+styled_df = (
+    df.style
+    .applymap(color_status, subset=["Status"])
+    .applymap(color_delta, subset=["Delta (Days)"])
+    .set_properties(**{
+        "text-align": "left",
+        "font-size": "14px"
+    })
 )
 
-filtered = df[df["Change Type"].isin(change_filter)]
-
-
-# =========================
-# SUMMARY
-# =========================
-st.subheader("Summary")
-
-c1, c2, c3, c4, c5 = st.columns(5)
-
-c1.metric("Total Deliverables", len(df))
-c2.metric("Delayed", (df["Change Type"] == "DELAYED").sum())
-c3.metric("Ahead", (df["Change Type"] == "AHEAD").sum())
-c4.metric("New", (df["Change Type"] == "NEW").sum())
-c5.metric("Removed", (df["Change Type"] == "REMOVED").sum())
-
-
-# =========================
-# TABLE
-# =========================
-st.subheader("Deliverable Comparison Table")
-
-st.dataframe(
-    filtered.sort_values("Delta (Days)", ascending=False),
-    use_container_width=True
-)
-
-
-# =========================
-# DOWNLOAD
-# =========================
-st.download_button(
-    "Download Report",
-    data=filtered.to_csv(index=False),
-    file_name="Deliverable_Comparison.csv",
-    mime="text/csv"
-)
+st.dataframe(styled_df, use_container_width=True)

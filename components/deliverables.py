@@ -1,125 +1,82 @@
 import pandas as pd
+import numpy as np
 
+def build_deliverables_report(cl31, cl32):
 
-# =========================
-# STEP 1: IDENTIFY DELIVERABLES
-# =========================
-def extract_deliverables(df):
+    df = pd.merge(
+        cl31[["Activity", "CL31 Finish"]],
+        cl32[["Activity", "CL32 Finish"]],
+        on="Activity",
+        how="outer"
+    )
 
-    df = df.copy()
-
-    # Ensure required columns exist
-    if "Activity Name" not in df.columns:
-        raise ValueError("Missing Activity Name column")
-    if "Finish" not in df.columns:
-        raise ValueError("Missing Finish column")
-
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
-
-    # -------------------------
-    # RULES TO IDENTIFY DELIVERABLES
-    # -------------------------
-    keywords = [
-        "design", "report", "submission", "pack",
-        "drawing", "manual", "model", "approval",
-        "freeze", "register", "specification", "plan"
-    ]
-
-    def is_deliverable(name):
-        if pd.isna(name):
-            return False
-        name_lower = name.lower()
-
-        # exclude obvious activities
-        exclude = [
-            "mobilisation", "review", "workshop",
-            "procurement", "installation", "lead",
-            "governance", "construction"
-        ]
-
-        if any(x in name_lower for x in exclude):
-            return False
-
-        return any(k in name_lower for k in keywords)
-
-
-    df = df[df["Activity Name"].apply(is_deliverable)].copy()
-
-    # Rename into deliverable name
-    df = df.rename(columns={"Activity Name": "Deliverable"})
-
-    # Keep latest finish per deliverable group
-    df = df.groupby("Deliverable", as_index=False)["Finish"].max()
-
-    return df
-
-
-# =========================
-# STEP 2: COMPARE CL31 vs CL32
-# =========================
-def compare_deliverables(df31, df32):
-
-    df31 = extract_deliverables(df31)
-    df32 = extract_deliverables(df32)
-
-    df31 = df31.rename(columns={"Finish": "CL31 Finish"})
-    df32 = df32.rename(columns={"Finish": "CL32 Finish"})
-
-    df = pd.merge(df31, df32, on="Deliverable", how="outer")
-
-    # Delta
-    df["Delta (Days)"] = (df["CL32 Finish"] - df["CL31 Finish"]).dt.days
-
-
-    # =========================
-    # CHANGE TYPE LOGIC
-    # =========================
-    def change(row):
-        a = row["CL31 Finish"]
-        b = row["CL32 Finish"]
-
-        if pd.isna(a) and pd.notna(b):
+    # -----------------------------
+    # CHANGE TYPE
+    # -----------------------------
+    def change_type(row):
+        if pd.isna(row["CL31 Finish"]) and pd.notna(row["CL32 Finish"]):
             return "NEW"
-        if pd.notna(a) and pd.isna(b):
+        if pd.notna(row["CL31 Finish"]) and pd.isna(row["CL32 Finish"]):
             return "REMOVED"
-        if pd.notna(a) and pd.notna(b):
-            if row["Delta (Days)"] == 0:
-                return "UNCHANGED"
-            elif row["Delta (Days)"] > 0:
-                return "DELAYED"
-            else:
-                return "AHEAD"
-        return "UNKNOWN"
+        return "COMPARE"
 
+    df["Change Type"] = df.apply(change_type, axis=1)
 
-    df["Change Type"] = df.apply(change, axis=1)
+    # -----------------------------
+    # DELTA
+    # -----------------------------
+    def delta_days(row):
+        if row["Change Type"] != "COMPARE":
+            return np.nan
+        return (row["CL32 Finish"] - row["CL31 Finish"]).days
 
+    df["Delta (Days)"] = df.apply(delta_days, axis=1)
 
-    # =========================
-    # COMMENTS
-    # =========================
-    def comment(row):
-        if row["Change Type"] == "DELAYED":
-            return "Shifted later, coordination required"
-        if row["Change Type"] == "AHEAD":
-            return "Pulled earlier, programme improvement"
-        if row["Change Type"] == "UNCHANGED":
-            return "Stable"
+    # -----------------------------
+    # STATUS
+    # -----------------------------
+    def status(row):
         if row["Change Type"] == "NEW":
-            return "Added scope in CL32"
+            return "NEW"
         if row["Change Type"] == "REMOVED":
-            return "Dropped from CL32"
-        return "Check data"
+            return "REMOVED"
+        if pd.isna(row["Delta (Days)"]):
+            return "UNKNOWN"
+        if row["Delta (Days)"] > 0:
+            return "DELAYED"
+        if row["Delta (Days)"] < 0:
+            return "AHEAD"
+        return "UNCHANGED"
 
+    df["Status"] = df.apply(status, axis=1)
+
+    # -----------------------------
+    # COMMENT
+    # -----------------------------
+    def comment(row):
+        if row["Status"] == "DELAYED":
+            return "Shifted later, coordination required"
+        if row["Status"] == "AHEAD":
+            return "Pulled earlier, potential float gain"
+        if row["Status"] == "UNCHANGED":
+            return "Stable"
+        if row["Status"] == "NEW":
+            return "Added scope in CL32"
+        if row["Status"] == "REMOVED":
+            return "Dropped from CL32"
+        return ""
 
     df["Status / Comment"] = df.apply(comment, axis=1)
 
-    # Final format
-    return df[[
-        "Deliverable",
+    # Clean ordering
+    df = df[[
+        "Activity",
         "CL31 Finish",
         "CL32 Finish",
         "Delta (Days)",
+        "Status",
         "Change Type",
         "Status / Comment"
     ]]
+
+    return df
