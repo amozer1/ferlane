@@ -2,21 +2,22 @@ import streamlit as st
 import pandas as pd
 
 from utils.loader import prepare_comparison_df
-from components.deliverables import render_deliverables_table
+from components.deliverables import render_table
 
 st.set_page_config(layout="wide")
 
-st.title("CL31 vs CL32 Deliverables Comparison")
+st.title("CL31 vs CL32 Change Register")
 
 
-def load_file(path):
-    return pd.read_excel(path)
+@st.cache_data
+def load():
+    df31 = pd.read_excel("data/CL31.xlsx")
+    df32 = pd.read_excel("data/CL32.xlsx")
+    return df31, df32
 
 
-# SAFE AUTO LOAD (Streamlit Cloud compatible)
-df31 = load_file("data/CL31.xlsx")
-df32 = load_file("data/CL32.xlsx")
+df31, df32 = load()
 
-comparison_df = prepare_comparison_df(df31, df32)
+df = prepare_comparison_df(df31, df32)
 
-render_deliverables_table(comparison_df)
+render_table(df)

@@ -1,61 +1,75 @@
 import pandas as pd
 
 
-def clean_dates(df):
-    for col in df.columns:
-        if "Start" in col or "Finish" in col:
+def clean(df):
+    df = df.copy()
+
+    # remove summary/header rows
+    df = df[df["Activity ID"].astype(str).str.contains("FER-", na=False)]
+
+    df = df[df["Activity Name"].notna()].copy()
+
+    df["Deliverable"] = df["Activity Name"].astype(str).str.strip()
+
+    # clean date noise (A, *)
+    for col in ["Finish"]:
+        if col in df.columns:
             df[col] = (
                 df[col]
                 .astype(str)
                 .str.replace(" A", "", regex=False)
                 .str.replace("*", "", regex=False)
             )
-    return df
 
-
-def prepare_dataframe(df):
-    """
-    FIX: Now expects a DataFrame, NOT a file path
-    """
-    if isinstance(df, str):
-        df = pd.read_excel(df)
-    elif hasattr(df, "read"):
-        # uploaded file from Streamlit
-        df = pd.read_excel(df)
-
-    df = clean_dates(df)
-
-    df = df[df["Activity Name"].notna()].copy()
-    df["Deliverable"] = df["Activity Name"].astype(str).str.strip()
+    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
     return df
 
 
-def build_lookup(df, col="Finish"):
-    df[col] = pd.to_datetime(df[col], errors="coerce")
-
-    return df.groupby("Deliverable")[col].max()
+def build_lookup(df):
+    return df.groupby("Deliverable")["Finish"].max()
 
 
 def prepare_comparison_df(df31, df32):
 
-    df31 = prepare_dataframe(df31)
-    df32 = prepare_dataframe(df32)
+    df31 = clean(df31)
+    df32 = clean(df32)
 
-    all_deliverables = sorted(
-        set(df31["Deliverable"]).union(set(df32["Deliverable"]))
-    )
+    cl31 = build_lookup(df31)
+    cl32 = build_lookup(df32)
+
+    all_deliverables = sorted(set(cl31.index).union(set(cl32.index)))
 
     merged = pd.DataFrame({"Deliverable": all_deliverables})
 
-    df31_map = build_lookup(df31)
-    df32_map = build_lookup(df32)
+    merged["CL31 Finish"] = merged["Deliverable"].map(cl31)
+    merged["CL32 Finish"] = merged["Deliverable"].map(cl32)
 
-    merged["CL31 Finish"] = merged["Deliverable"].map(df31_map)
-    merged["CL32 Finish"] = merged["Deliverable"].map(df32_map)
+    # keep only rows where at least one exists
+    merged = merged[
+        merged["CL31 Finish"].notna() |
+        merged["CL32 Finish"].notna()
+    ].copy()
 
+    # Delta
     merged["Delta (Days)"] = (
-        (merged["CL32 Finish"] - merged["CL31 Finish"]).dt.days
-    )
+        merged["CL32 Finish"] - merged["CL31 Finish"]
+    ).dt.days
+
+    # Change Type
+    def change_type(row):
+        if pd.isna(row["CL31 Finish"]) and pd.notna(row["CL32 Finish"]):
+            return "NEW"
+        if pd.notna(row["CL31 Finish"]) and pd.isna(row["CL32 Finish"]):
+            return "REMOVED"
+        if pd.isna(row["Delta (Days)"]):
+            return "NEW"
+        if row["Delta (Days)"] == 0:
+            return "UNCHANGED"
+        if row["Delta (Days)"] > 0:
+            return "DELAYED"
+        return "ACCELERATED"
+
+    merged["Change Type"] = merged.apply(change_type, axis=1)
 
     return merged

@@ -4,42 +4,52 @@ import streamlit as st
 
 def format_date(x):
     if pd.isna(x):
-        return ""
+        return "—"
     return pd.to_datetime(x).strftime("%d-%b-%y")
 
 
-def build_status(delta):
-    if pd.isna(delta):
-        return "No data"
-    if delta == 0:
+def status_comment(row):
+
+    if row["Change Type"] == "NEW":
+        return "Added scope in CL32"
+
+    if row["Change Type"] == "REMOVED":
+        return "Dropped from CL32"
+
+    if row["Change Type"] == "UNCHANGED":
         return "Stable"
-    if delta > 30:
-        return "Major delay"
-    if delta > 0:
-        return "Delayed"
-    return "Ahead"
+
+    if row["Change Type"] == "DELAYED":
+        if row["Delta (Days)"] > 30:
+            return "Major delay – critical attention required"
+        return "Minor slip – coordination required"
+
+    if row["Change Type"] == "ACCELERATED":
+        return "Programme improvement"
+
+    return "Review required"
 
 
-def render_deliverables_table(df):
+def render_table(df):
 
     df = df.copy()
 
     df["CL31 Finish"] = df["CL31 Finish"].apply(format_date)
     df["CL32 Finish"] = df["CL32 Finish"].apply(format_date)
 
-    df["Status / Comment"] = df["Delta (Days)"].apply(build_status)
-
-    df = df.rename(columns={
-        "Delta (Days)": "Delta (Days)"
-    })
-
-    st.dataframe(
-        df[[
-            "Deliverable",
-            "CL31 Finish",
-            "CL32 Finish",
-            "Delta (Days)",
-            "Status / Comment"
-        ]],
-        use_container_width=True
+    df["Delta (Days)"] = df["Delta (Days)"].apply(
+        lambda x: "—" if pd.isna(x) else f"{int(x):+d}"
     )
+
+    df["Status / Comment"] = df.apply(status_comment, axis=1)
+
+    final = df[[
+        "Deliverable",
+        "CL31 Finish",
+        "CL32 Finish",
+        "Delta (Days)",
+        "Change Type",
+        "Status / Comment"
+    ]]
+
+    st.dataframe(final, use_container_width=True)
