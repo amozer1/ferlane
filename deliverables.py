@@ -17,7 +17,6 @@ def build_deliverables(cl31, cl32):
     cl31["CL31 Finish"] = _to_date(cl31["BL Project Finish"])
     cl31 = cl31[["Deliverable", "CL31 Finish"]]
 
-
     # =========================
     # CL32 (ONLY Finish)
     # =========================
@@ -25,12 +24,10 @@ def build_deliverables(cl31, cl32):
     cl32["CL32 Finish"] = _to_date(cl32["Finish"])
     cl32 = cl32[["Deliverable", "CL32 Finish"]]
 
-
     # =========================
     # MERGE
     # =========================
     df = cl31.merge(cl32, on="Deliverable", how="outer")
-
 
     # =========================
     # PRESERVE CL31 ORDER + APPEND NEW
@@ -46,44 +43,23 @@ def build_deliverables(cl31, cl32):
     df["__order"] = df["Deliverable"].apply(order_func)
     df = df.sort_values("__order").drop(columns="__order")
 
-
     # =========================
-    # FORMAT DATES
-    # =========================
-    def fmt(x):
-        if pd.isna(x):
-            return "-"
-        return pd.to_datetime(x).strftime("%d-%b-%y")
-
-
-    df["CL31 Finish"] = df["CL31 Finish"].apply(fmt)
-    df["CL32 Finish"] = df["CL32 Finish"].apply(fmt)
-
-
-    # =========================
-    # DELTA
+    # DELTA (FIXED)
     # =========================
     def delta(row):
-        if row["CL31 Finish"] == "-" or row["CL32 Finish"] == "-":
+        if pd.isna(row["CL31 Finish"]) or pd.isna(row["CL32 Finish"]):
             return None
-        try:
-            d1 = pd.to_datetime(row["CL31 Finish"])
-            d2 = pd.to_datetime(row["CL32 Finish"])
-            return (d2 - d1).days
-        except:
-            return None
-
+        return int((row["CL32 Finish"] - row["CL31 Finish"]).days)
 
     df["Delta (Days)"] = df.apply(delta, axis=1)
-
 
     # =========================
     # CHANGE TYPE
     # =========================
     def change(row):
-        if row["CL31 Finish"] == "-" and row["CL32 Finish"] != "-":
+        if pd.isna(row["CL31 Finish"]) and pd.notna(row["CL32 Finish"]):
             return "NEW"
-        if row["CL31 Finish"] != "-" and row["CL32 Finish"] == "-":
+        if pd.notna(row["CL31 Finish"]) and pd.isna(row["CL32 Finish"]):
             return "REMOVED"
         if row["Delta (Days)"] is None:
             return "UNCHANGED"
@@ -93,9 +69,7 @@ def build_deliverables(cl31, cl32):
             return "EARLY"
         return "UNCHANGED"
 
-
     df["Change Type"] = df.apply(change, axis=1)
-
 
     # =========================
     # STATUS COMMENT
@@ -111,9 +85,18 @@ def build_deliverables(cl31, cl32):
             return "Pulled forward"
         return "Stable"
 
-
     df["Status / Comment"] = df.apply(comment, axis=1)
 
+    # =========================
+    # FORMAT DATES (MOVED TO END - IMPORTANT)
+    # =========================
+    def fmt(x):
+        if pd.isna(x):
+            return "-"
+        return pd.to_datetime(x).strftime("%d-%b-%y")
+
+    df["CL31 Finish"] = df["CL31 Finish"].apply(fmt)
+    df["CL32 Finish"] = df["CL32 Finish"].apply(fmt)
 
     # =========================
     # FINAL OUTPUT
