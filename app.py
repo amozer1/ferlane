@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 
 from utils.loader import load_cl31, load_cl32
 from components.deliverables import build_deliverables_report
@@ -14,41 +13,28 @@ cl32 = load_cl32()
 df = build_deliverables_report(cl31, cl32)
 
 # -----------------------------
-# COLOUR LOGIC (UPDATED)
+# COLOUR RULES
 # -----------------------------
-def status_color(val):
+def color_status(val):
     if val == "DELAYED":
-        return "background-color: #ffcccc"
+        return "background-color:#ffcccc"
     if val == "AHEAD":
-        return "background-color: #cce5ff"
+        return "background-color:#cce5ff"
     if val == "UNCHANGED":
-        return "background-color: #e6ffe6"
+        return "background-color:#e6ffe6"
     if val == "NEW":
-        return "background-color: #fff3cd"
+        return "background-color:#fff3cd"
     if val == "REMOVED":
-        return "background-color: #d6d6d6"
+        return "background-color:#d6d6d6"
     return ""
 
-def delta_color(val):
-    if pd.isna(val):
-        return ""
-    if val > 0:
-        return "color: red; font-weight: bold"
-    if val < 0:
-        return "color: green; font-weight: bold"
-    return ""
-
-# -----------------------------
-# STYLER (FIXED)
-# -----------------------------
-styled_df = (
+styled = (
     df.style
-    .map(status_color, subset=["Status"])
-    .map(delta_color, subset=["Delta (Days)"])
+    .map(color_status, subset=["Status"])
     .set_properties(**{
-        "text-align": "left",
-        "font-size": "14px"
+        "font-size": "14px",
+        "text-align": "left"
     })
 )
 
-st.dataframe(styled_df, use_container_width=True)
+st.dataframe(styled, use_container_width=True)
