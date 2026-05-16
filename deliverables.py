@@ -3,34 +3,14 @@ import pandas as pd
 
 def build_deliverables(cl31, cl32):
 
-    # =========================
-    # STANDARDISE KEYS
-    # =========================
-    cl31 = cl31.copy()
-    cl32 = cl32.copy()
-
-    cl31["Deliverable"] = cl31["Activity Name"].astype(str).str.strip()
-    cl32["Deliverable"] = cl32["Activity Name"].astype(str).str.strip()
-
-    # =========================
-    # KEEP ONLY NEEDED FIELDS
-    # =========================
-    cl31 = cl31[["Deliverable", "BL Project Finish"]]
-    cl32 = cl32[["Deliverable", "Finish"]]
-
-    # =========================
-    # MERGE
-    # =========================
     df = pd.merge(
         cl31,
         cl32,
-        on="Deliverable",
+        on="Activity Name",
         how="outer"
     )
 
-    # =========================
-    # RENAME FOR CLARITY
-    # =========================
+    # Rename for clarity ONLY
     df.rename(columns={
         "BL Project Finish": "CL31 Finish",
         "Finish": "CL32 Finish"
@@ -38,12 +18,6 @@ def build_deliverables(cl31, cl32):
 
     # =========================
     # FORMAT DATES
-    # =========================
-    df["CL31 Finish"] = pd.to_datetime(df["CL31 Finish"], errors="coerce")
-    df["CL32 Finish"] = pd.to_datetime(df["CL32 Finish"], errors="coerce")
-
-    # =========================
-    # DATE FORMATTING
     # =========================
     def fmt(x):
         return "-" if pd.isna(x) else x.strftime("%d-%b-%y")
@@ -54,7 +28,9 @@ def build_deliverables(cl31, cl32):
     # =========================
     # DELTA
     # =========================
-    df["Delta (Days)"] = (df["CL32 Finish"] - df["CL31 Finish"]).dt.days
+    df["Delta (Days)"] = (
+        df["CL32 Finish"] - df["CL31 Finish"]
+    ).dt.days
 
     # =========================
     # CHANGE TYPE
@@ -75,31 +51,14 @@ def build_deliverables(cl31, cl32):
     df["Change Type"] = df.apply(classify, axis=1)
 
     # =========================
-    # STATUS COMMENT
-    # =========================
-    def comment(row):
-        if row["Change Type"] == "NEW":
-            return "Added scope in CL32"
-        if row["Change Type"] == "REMOVED":
-            return "Removed from CL32"
-        if row["Change Type"] == "DELAYED":
-            return "Shifted later, coordination required"
-        if row["Change Type"] == "EARLY":
-            return "Pulled forward"
-        return "Stable"
-
-    df["Status / Comment"] = df.apply(comment, axis=1)
-
-    # =========================
-    # FINAL OUTPUT
+    # FINAL OUTPUT (NO REORDERING, NO GROUPING LOGIC)
     # =========================
     out = df[[
-        "Deliverable",
+        "Activity Name",
         "CL31 Finish_fmt",
         "CL32 Finish_fmt",
         "Delta (Days)",
-        "Change Type",
-        "Status / Comment"
+        "Change Type"
     ]]
 
     out.rename(columns={
@@ -107,4 +66,4 @@ def build_deliverables(cl31, cl32):
         "CL32 Finish_fmt": "CL32 Finish"
     }, inplace=True)
 
-    return out.sort_values("Deliverable")
+    return out
