@@ -1,22 +1,17 @@
 import streamlit as st
-
 from loader import load_cl31, load_cl32
 from deliverables import build_deliverables
-from cards.pie_card import render_pie
 
 st.set_page_config(layout="wide")
 
 st.title("📊 CL31 vs CL32 Deliverable Tracker")
 
 # =========================
-# LOAD DATA
+# LOAD
 # =========================
-df31 = load_cl31("data/CL31-February.xlsx")
-df32 = load_cl32("data/CL32-May.xlsx")
+df31 = load_cl31()
+df32 = load_cl32()
 
-# =========================
-# BUILD RESULT
-# =========================
 result = build_deliverables(df31, df32)
 
 # =========================
@@ -30,12 +25,12 @@ col3.metric("DELAYED", (result["Change Type"] == "DELAYED").sum())
 col4.metric("EARLY", (result["Change Type"] == "EARLY").sum())
 
 # =========================
-# PIE CARD (separate module)
-# =========================
-render_pie(result)
-
-# =========================
-# TABLE
+# TABLE ONLY
 # =========================
 st.subheader("Deliverable Comparison Table")
+
 st.dataframe(result, use_container_width=True, hide_index=True)
+
+from chart_card import render_pie
+
+render_pie(result)
