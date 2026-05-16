@@ -1,69 +1,47 @@
-# components/dashboard.py
-
 import pandas as pd
-from datetime import datetime
 
 
-def build_dashboard_card(df31, df32):
+def extract_deliverables(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Deliverables = Activity Name ONLY (no hierarchy, no mapping)
+    """
 
-    # -------------------------
-    # STANDARDISE INPUTS
-    # -------------------------
-    df31 = df31.copy()
-    df32 = df32.copy()
+    deliverables = df.copy()
 
-    df31 = df31[["Activity Name", "Finish_Eff"]].dropna()
-    df32 = df32[["Activity Name", "Finish_Eff"]].dropna()
+    deliverables = deliverables.dropna(subset=["Activity Name"])
 
-    df31.columns = ["Deliverable", "CL31 Finish"]
-    df32.columns = ["Deliverable", "CL32 Finish"]
+    deliverables["Activity Name"] = deliverables["Activity Name"].astype(str).str.strip()
 
-    merged = pd.merge(df31, df32, on="Deliverable", how="outer")
+    return deliverables
 
-    # -------------------------
-    # DATE CONVERSION
-    # -------------------------
-    merged["CL31 Finish"] = pd.to_datetime(merged["CL31 Finish"], errors="coerce")
-    merged["CL32 Finish"] = pd.to_datetime(merged["CL32 Finish"], errors="coerce")
 
-    # -------------------------
-    # DELTA CALCULATION
-    # -------------------------
-    merged["Δ Finish (Days)"] = (merged["CL32 Finish"] - merged["CL31 Finish"]).dt.days
+def build_deliverables_card(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Build comparison table:
+    CL logic must already be handled in loader
+    """
 
-    # -------------------------
-    # FLOAT LOGIC (simple proxy)
-    # -------------------------
-    merged["Float Change"] = merged["Δ Finish (Days)"].fillna(0)
+    out = df.copy()
 
-    # -------------------------
-    # STATUS RULES (NEC STYLE)
-    # -------------------------
-    def status(row):
-        delta = row["Δ Finish (Days)"]
+    # variance calculation (simple)
+    out["Δ Finish (Days)"] = (
+        pd.to_datetime(out["Finish"], dayfirst=True)
+        - pd.to_datetime(out["BL Finish"], dayfirst=True)
+    ).dt.days
 
-        if pd.isna(delta):
-            return "🟣 Missing Data"
-        elif delta <= 0:
-            return "🟢 On Track / Ahead"
-        elif delta <= 10:
-            return "🟡 At Risk"
-        else:
-            return "🔴 Critical Delay"
+    out["Status"] = out["Δ Finish (Days)"].apply(lambda x:
+        "🔴 Critical" if x > 20 else
+        "🔴 Delayed" if x > 0 else
+        "🟡 At Risk" if x > -10 else
+        "🟢 On Track"
+    )
 
-    merged["Status"] = merged.apply(status, axis=1)
-
-    # -------------------------
-    # FORMAT OUTPUT DATES
-    # -------------------------
-    merged["CL31 Finish"] = merged["CL31 Finish"].dt.strftime("%d-%b-%Y")
-    merged["CL32 Finish"] = merged["CL32 Finish"].dt.strftime("%d-%b-%Y")
-
-    return merged[[
-        "Deliverable",
-        "CL31 Finish",
-        "CL32 Finish",
+    return out[[
+        "Activity Name",
+        "Start",
+        "Finish",
+        "BL Start",
+        "BL Finish",
         "Δ Finish (Days)",
-        "Float Change",
         "Status"
     ]]
