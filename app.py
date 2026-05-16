@@ -1,5 +1,5 @@
 import streamlit as st
-from loader import load_cl31, load_cl32
+from loader import load_schedule
 from deliverables import build_deliverables
 
 st.set_page_config(layout="wide")
@@ -9,28 +9,13 @@ st.title("📊 CL31 vs CL32 Deliverable Tracker")
 # =========================
 # LOAD DATA
 # =========================
-df31 = load_cl31()
-df32 = load_cl32()
+df31 = load_schedule("data/CL31-February.xlsx")
+df32 = load_schedule("data/CL32-May.xlsx")
 
 # =========================
 # BUILD TABLE
 # =========================
 result = build_deliverables(df31, df32)
-
-# =========================
-# FILTERS
-# =========================
-st.sidebar.header("Filters")
-
-status_options = result["Change Type"].unique()
-
-selected_status = st.sidebar.multiselect(
-    "Change Type",
-    options=status_options,
-    default=status_options
-)
-
-filtered = result[result["Change Type"].isin(selected_status)]
 
 # =========================
 # KPI CARDS
@@ -48,7 +33,7 @@ col4.metric("UNCHANGED", (result["Change Type"] == "UNCHANGED").sum())
 st.subheader("Deliverable Comparison Table")
 
 st.dataframe(
-    filtered,
+    result,
     use_container_width=True,
     hide_index=True
 )
