@@ -1,45 +1,29 @@
+# loader.py
+
 import pandas as pd
-import re
 
 
-def load_excel(path: str):
+def _load_excel(path):
+
     df = pd.read_excel(path)
+
+    # Clean columns
     df.columns = df.columns.str.strip()
+
     return df
 
 
-def is_deliverable_row(row):
-    name = str(row.get("Activity Name", "")).strip()
+def load_cl31(path="data/CL31-February.xlsx"):
 
-    if name == "" or name.lower() == "nan":
-        return False
+    df = _load_excel(path)
+    df["Source"] = "CL31"
 
-    # reject pure structural rows
-    reject = [
-        "design", "procurement", "construction",
-        "milestones", "key dates", "programme",
-        "deliverables"
-    ]
-
-    if name.lower() in reject:
-        return False
-
-    # reject rows that are just timing containers (no meaning)
-    if len(name) < 5:
-        return False
-
-    # must have some scheduling info
-    if pd.isna(row.get("Finish")) and pd.isna(row.get("Start")):
-        return False
-
-    return True
+    return df
 
 
-def clean_date(value):
-    if pd.isna(value):
-        return pd.NaT
+def load_cl32(path="data/CL32-May.xlsx"):
 
-    value = str(value)
-    value = re.sub(r"[A\*]", "", value).strip()
+    df = _load_excel(path)
+    df["Source"] = "CL32"
 
-    return pd.to_datetime(value, errors="coerce")
+    return df

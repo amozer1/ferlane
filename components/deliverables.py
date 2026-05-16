@@ -1,81 +1,236 @@
+# deliverables.py
+
 import pandas as pd
-from utils.loader import is_deliverable_row, clean_date
+import numpy as np
 
 
-def build_deliverable_comparison(df31, df32):
+def build_deliverables(cl31, cl32):
 
-    # -------------------------
-    # STEP 1: LOCI FILTERING
-    # -------------------------
-    df31 = df31[df31.apply(is_deliverable_row, axis=1)].copy()
-    df32 = df32[df32.apply(is_deliverable_row, axis=1)].copy()
+    cl31 = cl31.copy()
+    cl32 = cl32.copy()
 
-    # -------------------------
-    # STEP 2: KEEP ORIGINAL NAME (NO TRANSFORM)
-    # -------------------------
-    df31["Deliverable"] = df31["Activity Name"]
-    df32["Deliverable"] = df32["Activity Name"]
+    # ---------------------------------------------------
+    # CLEAN COLUMN NAMES
+    # ---------------------------------------------------
 
-    # -------------------------
-    # STEP 3: CLEAN DATES ONLY
-    # -------------------------
-    df31["CL31 Finish"] = df31["Finish"].apply(clean_date)
-    df32["CL32 Finish"] = df32["Finish"].apply(clean_date)
+    cl31.columns = cl31.columns.str.strip()
+    cl32.columns = cl32.columns.str.strip()
 
-    # -------------------------
-    # STEP 4: MERGE
-    # -------------------------
-    merged = pd.merge(
-        df31[["Deliverable", "CL31 Finish"]],
-        df32[["Deliverable", "CL32 Finish"]],
+    # ---------------------------------------------------
+    # STANDARDISE
+    # ---------------------------------------------------
+
+    cl31 = cl31.rename(columns={
+        "Activity Name": "Deliverable",
+        "Finish": "CL31 Finish",
+        "Total Float": "CL31 Float"
+    })
+
+    cl32 = cl32.rename(columns={
+        "Activity Name": "Deliverable",
+        "Finish": "CL32 Finish",
+        "Total Float": "CL32 Float"
+    })
+
+    # ---------------------------------------------------
+    # KEEP REQUIRED FIELDS
+    # ---------------------------------------------------
+
+    cl31 = cl31[
+        [
+            "Deliverable",
+            "CL31 Finish",
+            "CL31 Float"
+        ]
+    ]
+
+    cl32 = cl32[
+        [
+            "Deliverable",
+            "CL32 Finish",
+            "CL32 Float"
+        ]
+    ]
+
+    # ---------------------------------------------------
+    # REMOVE BLANKS
+    # ---------------------------------------------------
+
+    cl31["Deliverable"] = (
+        cl31["Deliverable"]
+        .astype(str)
+        .str.strip()
+    )
+
+    cl32["Deliverable"] = (
+        cl32["Deliverable"]
+        .astype(str)
+        .str.strip()
+    )
+
+    cl31 = cl31[
+        cl31["Deliverable"] != ""
+    ]
+
+    cl32 = cl32[
+        cl32["Deliverable"] != ""
+    ]
+
+    # ---------------------------------------------------
+    # REMOVE DUPLICATES
+    # ---------------------------------------------------
+
+    cl31 = cl31.drop_duplicates(
+        subset=["Deliverable"]
+    )
+
+    cl32 = cl32.drop_duplicates(
+        subset=["Deliverable"]
+    )
+
+    # ---------------------------------------------------
+    # MERGE
+    # ---------------------------------------------------
+
+    df = pd.merge(
+        cl31,
+        cl32,
         on="Deliverable",
         how="outer"
     )
 
-    # -------------------------
-    # STEP 5: DELTA
-    # -------------------------
-    merged["Delta (Days)"] = (
-        merged["CL32 Finish"] - merged["CL31 Finish"]
+    # ---------------------------------------------------
+    # DATES
+    # ---------------------------------------------------
+
+    df["CL31 Finish"] = pd.to_datetime(
+        df["CL31 Finish"],
+        errors="coerce"
+    )
+
+    df["CL32 Finish"] = pd.to_datetime(
+        df["CL32 Finish"],
+        errors="coerce"
+    )
+
+    # ---------------------------------------------------
+    # FLOAT
+    # ---------------------------------------------------
+
+    df["Float"] = df["CL32 Float"]
+
+    # ---------------------------------------------------
+    # DELTA
+    # ---------------------------------------------------
+
+    df["Delta (Days)"] = (
+        df["CL32 Finish"] -
+        df["CL31 Finish"]
     ).dt.days
 
-    # -------------------------
-    # STEP 6: CHANGE TYPE
-    # -------------------------
-    def change_type(r):
-        if pd.isna(r["CL31 Finish"]) and pd.notna(r["CL32 Finish"]):
+    # ---------------------------------------------------
+    # CHANGE TYPE
+    # ---------------------------------------------------
+
+    def classify(row):
+
+        cl31_missing = pd.isna(row["CL31 Finish"])
+        cl32_missing = pd.isna(row["CL32 Finish"])
+
+        if cl31_missing and not cl32_missing:
             return "NEW"
-        if pd.notna(r["CL31 Finish"]) and pd.isna(r["CL32 Finish"]):
+
+        if not cl31_missing and cl32_missing:
             return "REMOVED"
-        if pd.notna(r["Delta (Days)"]) and r["Delta (Days)"] > 0:
+
+        if row["Delta (Days)"] == 0:
+            return "UNCHANGED"
+
+        if row["Delta (Days)"] > 0:
             return "DELAYED"
-        if pd.notna(r["Delta (Days)"]) and r["Delta (Days)"] < 0:
-            return "ACCELERATED"
+
+        if row["Delta (Days)"] < 0:
+            return "EARLY"
+
         return "UNCHANGED"
 
-    merged["Change Type"] = merged.apply(change_type, axis=1)
+    df["Change Type"] = df.apply(
+        classify,
+        axis=1
+    )
 
-    # -------------------------
-    # STEP 7: OUTPUT FORMAT ONLY
-    # -------------------------
-    merged["CL31 Finish"] = pd.to_datetime(merged["CL31 Finish"]).dt.strftime("%d-%b-%Y")
-    merged["CL32 Finish"] = pd.to_datetime(merged["CL32 Finish"]).dt.strftime("%d-%b-%Y")
+    # ---------------------------------------------------
+    # COMMENTS
+    # ---------------------------------------------------
 
-    merged["Delta (Days)"] = merged["Delta (Days)"].fillna("—")
+    def comment(row):
 
-    merged["Status / Comment"] = merged["Change Type"].map({
-        "DELAYED": "Shifted later, coordination required",
-        "ACCELERATED": "Moved earlier",
-        "NEW": "Added in CL32",
-        "REMOVED": "Dropped from CL32",
-        "UNCHANGED": "Stable"
-    })
+        if row["Change Type"] == "NEW":
+            return "Added scope in CL32"
 
-    return merged[[
-        "Deliverable",
-        "CL31 Finish",
-        "CL32 Finish",
-        "Delta (Days)",
-        "Change Type",
-        "Status / Comment"
-    ]]
+        if row["Change Type"] == "REMOVED":
+            return "Removed from CL32"
+
+        if row["Change Type"] == "DELAYED":
+            return "Shifted later, coordination required"
+
+        if row["Change Type"] == "EARLY":
+            return "Pulled forward"
+
+        return "Stable"
+
+    df["Status / Comment"] = df.apply(
+        comment,
+        axis=1
+    )
+
+    # ---------------------------------------------------
+    # DATE FORMAT
+    # ---------------------------------------------------
+
+    df["CL31 Finish"] = df["CL31 Finish"].dt.strftime(
+        "%d-%b-%y"
+    )
+
+    df["CL32 Finish"] = df["CL32 Finish"].dt.strftime(
+        "%d-%b-%y"
+    )
+
+    # ---------------------------------------------------
+    # FINAL ORDER
+    # ---------------------------------------------------
+
+    df = df[
+        [
+            "Deliverable",
+            "CL31 Finish",
+            "CL32 Finish",
+            "Delta (Days)",
+            "Float",
+            "Change Type",
+            "Status / Comment"
+        ]
+    ]
+
+    # ---------------------------------------------------
+    # SORT
+    # ---------------------------------------------------
+
+    order = {
+        "DELAYED": 1,
+        "EARLY": 2,
+        "NEW": 3,
+        "REMOVED": 4,
+        "UNCHANGED": 5
+    }
+
+    df["Sort"] = df["Change Type"].map(order)
+
+    df = df.sort_values(
+        by=["Sort", "Delta (Days)"],
+        ascending=[True, False]
+    )
+
+    df = df.drop(columns=["Sort"])
+
+    return df.reset_index(drop=True)
