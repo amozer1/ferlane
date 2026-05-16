@@ -1,67 +1,25 @@
 import streamlit as st
 
 
-def render_table(df):
+def style_table(df):
+    def color(row):
+        if row["Change Type"] == "DELAYED":
+            return ["background-color:#ffcccc"] * len(row)
+        if row["Change Type"] == "MODIFIED":
+            return ["background-color:#fff2cc"] * len(row)
+        if row["Change Type"] == "NEW":
+            return ["background-color:#d9fdd3"] * len(row)
+        if row["Change Type"] == "REMOVED":
+            return ["background-color:#e6e6e6"] * len(row)
+        return [""] * len(row)
 
-    st.subheader("📊 CL31 vs CL32 Comparison")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        status = st.multiselect(
-            "Change Type",
-            df["Change Type"].unique(),
-            default=df["Change Type"].unique()
-        )
-
-    with col2:
-        discipline = st.multiselect(
-            "Discipline",
-            df["Discipline"].unique(),
-            default=df["Discipline"].unique()
-        )
-
-    filtered = df[
-        (df["Change Type"].isin(status)) &
-        (df["Discipline"].isin(discipline))
-    ]
-
-    st.dataframe(filtered, use_container_width=True)
+    return df.style.apply(color, axis=1)
 
 
-# ----------------------------
-# STRUCTURED VIEW (EXECUTIVE STYLE)
-# ----------------------------
-def render_structured_view(df):
+def render_deliverables(df):
+    st.subheader("Deliverables Comparison (CL31 vs CL32)")
 
-    st.subheader("🧭 Structured Deliverables View")
-
-    colour = {
-        "NEW": "🟢",
-        "REMOVED": "🔴",
-        "DELAYED": "🟠",
-        "UNCHANGED": "⚪"
-    }
-
-    for d in sorted(df["Discipline"].unique()):
-
-        st.markdown(f"## 🏗 {d}")
-
-        sub = df[df["Discipline"] == d]
-
-        for t in ["DELAYED", "NEW", "REMOVED", "UNCHANGED"]:
-            group = sub[sub["Change Type"] == t]
-
-            if len(group) > 0:
-                st.markdown(f"### {colour[t]} {t}")
-
-                for _, r in group.iterrows():
-                    st.markdown(
-                        f"""
-                        **{r['Deliverable']}**  
-                        CL31: {r['CL31 Finish']} | CL32: {r['CL32 Finish']}  
-                        Δ {r['Delta (Days)']} days  
-                        _{r['Status / Comment']}_  
-                        ---
-                        """
-                    )
+    st.dataframe(
+        style_table(df),
+        use_container_width=True
+    )
