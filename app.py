@@ -1,45 +1,62 @@
+# app.py
+
 import streamlit as st
+import pandas as pd
+
 from utils.loader import load_programme
-from components.deliverables import build_deliverables_card
+from components.deliverables import extract_deliverables
 
-# ----------------------------
-# PAGE CONFIG
-# ----------------------------
-st.set_page_config(
-    page_title="CL31 vs CL32 Deliverables Tracker",
-    layout="wide"
-)
+st.set_page_config(layout="wide")
 
-st.title("📊 CL31 vs CL32 Programme Deliverables Tracker")
+st.title("📊 CL31 vs CL32 Deliverables Dashboard")
 
-# ----------------------------
-# LOAD DATA
-# ----------------------------
-cl31_file = "data/CL31.xlsx"
-cl32_file = "data/CL32.xlsx"
+# -------------------------
+# FILE UPLOAD
+# -------------------------
+cl31_file = st.file_uploader("Upload CL31 Excel", type=["xlsx"])
+cl32_file = st.file_uploader("Upload CL32 Excel", type=["xlsx"])
 
-cl31_df = load_programme(cl31_file)
-cl32_df = load_programme(cl32_file)
+# -------------------------
+# MAIN LOGIC
+# -------------------------
+if cl31_file and cl32_file:
 
-# ----------------------------
-# VALIDATION
-# ----------------------------
-if cl31_df is None or cl32_df is None:
-    st.error("Failed to load programme data. Check Excel files and loader.")
-    st.stop()
+    cl31_df = load_programme(cl31_file)
+    cl32_df = load_programme(cl32_file)
 
-# ----------------------------
-# BUILD DELIVERABLE CARD
-# ----------------------------
-card_df = build_deliverables_card(cl31_df, cl32_df)
+    cl31_del = extract_deliverables(cl31_df)
+    cl32_del = extract_deliverables(cl32_df)
 
-# ----------------------------
-# DISPLAY (SINGLE CARD ONLY)
-# ----------------------------
-st.subheader("📌 Deliverables Comparison (CL31 vs CL32)")
+    # convert to frames
+    df31 = pd.DataFrame({"Deliverable": cl31_del})
+    df32 = pd.DataFrame({"Deliverable": cl32_del})
 
-st.dataframe(
-    card_df,
-    use_container_width=True,
-    hide_index=True
-)
+    # merge comparison
+    merged = pd.merge(
+        df31,
+        df32,
+        on="Deliverable",
+        how="outer",
+        indicator=True
+    )
+
+    # status logic
+    def status(x):
+        if x == "both":
+            return "🟢 Both CL31 & CL32"
+        elif x == "left_only":
+            return "🔵 CL31 Only"
+        else:
+            return "🟣 CL32 Only"
+
+    merged["Status"] = merged["_merge"].apply(status)
+
+    st.subheader("Deliverables Comparison")
+
+    st.dataframe(
+        merged[["Deliverable", "Status"]],
+        use_container_width=True
+    )
+
+else:
+    st.info("Upload CL31 and CL32 Excel files to begin")
