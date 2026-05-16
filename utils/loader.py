@@ -1,213 +1,100 @@
 import pandas as pd
-import numpy as np
-import re
-
-DATE_FORMAT = "%d-%b-%Y"
 
 
-# ---------------------------------
-# CLEAN DATE
-# ---------------------------------
-def clean_date(value):
-
-    if pd.isna(value):
-        return np.nan
-
-    value = str(value).strip()
-
-    # remove A and *
-    value = re.sub(r"[A\*]", "", value).strip()
-
-    try:
-        dt = pd.to_datetime(value, dayfirst=True, errors="coerce")
-
-        if pd.isna(dt):
-            return np.nan
-
-        return dt
-
-    except:
-        return np.nan
-
-
-# ---------------------------------
-# FORMAT DATE
-# ---------------------------------
-def format_date(dt):
-
-    if pd.isna(dt):
-        return "—"
-
-    return dt.strftime(DATE_FORMAT)
-
-
-# ---------------------------------
-# LOAD PROGRAMME
-# ---------------------------------
-def load_programme(file):
-
-    df = pd.read_excel(file, engine="openpyxl")
-
-    df.columns = [c.strip() for c in df.columns]
-
-    # detect activity name column
-    activity_col = None
-
-    for c in df.columns:
-
-        c_lower = c.lower()
-
-        if "activity name" in c_lower:
-            activity_col = c
-            break
-
-    # detect finish column
-    finish_col = None
-
-    for c in df.columns:
-
-        c_lower = c.lower()
-
-        if "finish" == c_lower or "finish date" in c_lower:
-            finish_col = c
-            break
-
-    if activity_col is None:
-        raise ValueError("Activity Name column not found")
-
-    if finish_col is None:
-        raise ValueError("Finish column not found")
-
-    # keep only required columns
-    df = df[[activity_col, finish_col]].copy()
-
-    df.columns = ["Deliverable", "Finish"]
-
-    # clean
-    df["Deliverable"] = df["Deliverable"].astype(str).str.strip()
-
-    df["Finish"] = df["Finish"].apply(clean_date)
-
-    # REMOVE BLANK DATES
-    df = df.dropna(subset=["Finish"])
-
-    # REMOVE BLANK NAMES
-    df = df[df["Deliverable"] != ""]
-
-    # remove duplicates
-    df = df.drop_duplicates(subset=["Deliverable"])
-
+def _clean_columns(df: pd.DataFrame) -> pd.DataFrame:
+    df.columns = df.columns.str.strip()
     return df
 
 
-# ---------------------------------
-# PREPARE COMPARISON
-# ---------------------------------
-def prepare_comparison_df(file31, file32):
+def load_programme(uploaded_file: str | object) -> pd.DataFrame:
+    """
+    Loads programme data from uploaded Excel file or file path.
+    """
+    if uploaded_file is None:
+        return pd.DataFrame()
+
+    try:
+        df = pd.read_excel(uploaded_file, engine="openpyxl")
+        df = _clean_columns(df)
+        return df
+    except Exception as e:
+        raise ValueError(f"Error reading Excel file: {e}")
+
+
+def prepare_comparison_df(file31, file32) -> pd.DataFrame:
+    """
+    Creates CL31 vs CL32 comparison dataset dynamically.
+    """
 
     df31 = load_programme(file31)
     df32 = load_programme(file32)
 
-    merged = pd.merge(
-        df31,
-        df32,
-        on="Deliverable",
-        how="outer",
-        suffixes=("_CL31", "_CL32")
-    )
+    if df31.empty or df32.empty:
+        return pd.DataFrame()
 
-    merged.rename(columns={
-        "Finish_CL31": "CL31 Finish",
-        "Finish_CL32": "CL32 Finish"
-    }, inplace=True)
+    # Standardise column names
+    def standardise(df):
+        # Try flexible column detection
+        deliverable_col = "Activity Name" if "Activity Name" in df.columns else None
+        finish_col = "Finish" if "Finish" in df.columns else None
 
-    # ---------------------------------
-    # DELTA
-    # ---------------------------------
-    def calculate_delta(row):
+        if not deliverable_col or not finish_col:
+            raise ValueError("Missing required columns: 'Activity Name' or 'Finish'")
 
-        a = row["CL31 Finish"]
-        b = row["CL32 Finish"]
+        df = df[[deliverable_col, finish_col]].copy()
+        df.columns = ["Deliverable", "Finish"]
+        return df
 
-        if pd.isna(a) or pd.isna(b):
-            return "—"
+    df31 = standardise(df31)
+    df32 = standardise(df32)
 
-        return int((b - a).days)
+    # Convert dates safely
+    df31["Finish"] = pd.to_datetime(df31["Finish"], errors="coerce")
+    df32["Finish"] = pd.to_datetime(df32["Finish"], errors="coerce")
 
-    merged["Delta (Days)"] = merged.apply(calculate_delta, axis=1)
+    df31 = df31.rename(columns={"Finish": "CL31 Finish"})
+    df32 = df32.rename(columns={"Finish": "CL32 Finish"})
 
-    # ---------------------------------
-    # CHANGE TYPE
-    # ---------------------------------
+    # Merge EVERYTHING (treat all CL32 as deliverables baseline)
+    df = pd.merge(df31, df32, on="Deliverable", how="outer")
+
+    # Delta calculation
+    df["Delta (Days)"] = (df["CL32 Finish"] - df["CL31 Finish"]).dt.days
+
+    # Change classification
     def classify(row):
-
-        a = row["CL31 Finish"]
-        b = row["CL32 Finish"]
-
-        if pd.notna(a) and pd.isna(b):
-            return "REMOVED"
-
-        if pd.isna(a) and pd.notna(b):
+        if pd.isna(row["CL31 Finish"]) and pd.notna(row["CL32 Finish"]):
             return "NEW"
 
-        if pd.notna(a) and pd.notna(b):
+        if pd.isna(row["CL32 Finish"]) and pd.notna(row["CL31 Finish"]):
+            return "REMOVED"
 
-            delta = (b - a).days
+        if pd.isna(row["Delta (Days)"]):
+            return "UNKNOWN"
 
-            if delta > 0:
-                return "DELAYED"
+        if row["Delta (Days)"] < 0:
+            return "ACCELERATED"
 
-            elif delta < 0:
-                return "ACCELERATED"
+        if row["Delta (Days)"] > 0:
+            return "DELAYED"
 
-            else:
-                return "UNCHANGED"
+        return "UNCHANGED"
 
-        return "UNKNOWN"
+    df["Change Type"] = df.apply(classify, axis=1)
 
-    merged["Change Type"] = merged.apply(classify, axis=1)
+    # Status messages
+    status_map = {
+        "ACCELERATED": "Earlier than CL31 baseline",
+        "DELAYED": "Shifted later, coordination required",
+        "NEW": "Added in CL32",
+        "REMOVED": "Dropped from CL32",
+        "UNCHANGED": "No change",
+        "UNKNOWN": "Insufficient data"
+    }
 
-    # ---------------------------------
-    # STATUS COMMENT
-    # ---------------------------------
-    def comment(row):
+    df["Status / Comment"] = df["Change Type"].map(status_map)
 
-        c = row["Change Type"]
+    # Sort for readability
+    df = df.sort_values(by=["Change Type", "Deliverable"], na_position="last")
 
-        if c == "DELAYED":
-            return "Shifted later, coordination required"
-
-        if c == "ACCELERATED":
-            return "Earlier than CL31 baseline"
-
-        if c == "NEW":
-            return "Added in CL32"
-
-        if c == "REMOVED":
-            return "Dropped from CL32"
-
-        return "Stable"
-
-    merged["Status / Comment"] = merged.apply(comment, axis=1)
-
-    # format dates
-    merged["CL31 Finish"] = merged["CL31 Finish"].apply(format_date)
-
-    merged["CL32 Finish"] = merged["CL32 Finish"].apply(format_date)
-
-    # sort
-    merged = merged.sort_values(
-        by=["Change Type", "Deliverable"]
-    )
-
-    # final columns
-    merged = merged[[
-        "Deliverable",
-        "CL31 Finish",
-        "CL32 Finish",
-        "Delta (Days)",
-        "Change Type",
-        "Status / Comment"
-    ]]
-
-    return merged.reset_index(drop=True)
+    return df

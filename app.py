@@ -2,21 +2,24 @@ import streamlit as st
 from utils.loader import prepare_comparison_df
 from components.deliverables import render_deliverables
 
-st.set_page_config(
-    page_title="CL31 vs CL32 Dashboard",
-    layout="wide"
-)
+st.set_page_config(page_title="Deliverables Dashboard", layout="wide")
 
-st.title("📊 CL31 vs CL32 Programme Dashboard")
+st.title("Programme Deliverables Dashboard (CL31 vs CL32)")
 
-# ---------------------------------
-# AUTO LOAD FILES
-# ---------------------------------
-CL31_FILE = "data/CL31-February.xlsx"
-CL32_FILE = "data/CL32-May.xlsx"
+st.markdown("Upload CL31 and CL32 programme files to generate comparison.")
 
-# load automatically
-df = prepare_comparison_df(CL31_FILE, CL32_FILE)
+# Uploads (fixes ALL file path issues)
+cl31_file = st.file_uploader("Upload CL31 File", type=["xlsx"])
+cl32_file = st.file_uploader("Upload CL32 File", type=["xlsx"])
 
-# render table
-render_deliverables(df)
+if cl31_file and cl32_file:
+
+    df = prepare_comparison_df(cl31_file, cl32_file)
+
+    render_deliverables(df)
+
+elif cl31_file or cl32_file:
+    st.info("Please upload BOTH CL31 and CL32 files.")
+
+else:
+    st.warning("Waiting for file uploads...")
