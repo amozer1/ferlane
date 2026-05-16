@@ -7,6 +7,7 @@ def render_pie(result):
     counts = result["Change Type"].value_counts()
 
     labels = ["DELAYED", "EARLY", "NEW", "UNCHANGED"]
+
     values = [
         counts.get("DELAYED", 0),
         counts.get("EARLY", 0),
@@ -20,5 +21,5 @@ def render_pie(result):
     ax.pie(values, labels=labels, autopct="%1.0f%%", colors=colors)
     ax.set_title("Programme Health Overview")
 
-    st.subheader("Programme Status Summary")
+    st.subheader("Programme Status (Pie Chart)")
     st.pyplot(fig)
