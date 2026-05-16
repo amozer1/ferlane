@@ -1,109 +1,79 @@
+# components/deliverables.py
 import pandas as pd
 
-def _safe_date(df, col):
-    if col in df.columns:
-        return pd.to_datetime(df[col], errors="coerce")
-    return pd.NaT
-
-
-def build_design_control_table(cl31: pd.DataFrame, cl32: pd.DataFrame) -> pd.DataFrame:
-    """
-    Builds CL31 vs CL32 comparison table for design management control.
-    """
+def build_design_control_table(cl31, cl32):
 
     # -------------------------
-    # KEEP ONLY ESSENTIAL FIELDS (SAFE FALLBACK)
-    # -------------------------
-    base_cols = ["Activity ID", "Activity Name"]
-
-    cl31 = cl31.copy()
-    cl32 = cl32.copy()
-
-    # standardise column names
-    cl31.columns = cl31.columns.str.strip()
-    cl32.columns = cl32.columns.str.strip()
-
-    # -------------------------
-    # MERGE
+    # MERGE (THIS FIXES YOUR ISSUE)
     # -------------------------
     df = cl31.merge(
-        cl32,
+        cl32[["Activity ID", "CL32 Finish"]],
         on="Activity ID",
-        how="outer",
-        suffixes=("_CL31", "_CL32")
+        how="left"
     )
 
     # -------------------------
-    # FINISH DATES
+    # RENAME SAFE FIELDS
     # -------------------------
-    cl31_finish = _safe_date(df, "Finish_CL31")
-    cl32_finish = _safe_date(df, "Finish_CL32")
-
-    df["CL31 Finish"] = cl31_finish
-    df["CL32 Finish"] = cl32_finish
+    if "Activity Name_CL31" not in df.columns:
+        df["Activity Name_CL31"] = df.get("Activity Name", "")
 
     # -------------------------
-    # VARIANCE
+    # VARIANCE CALCULATION
     # -------------------------
-    df["Variance (days)"] = (df["CL32 Finish"] - df["CL31 Finish"]).dt.days
+    df["Variance (days)"] = (
+        df["CL32 Finish"] - df["CL31 Finish"]
+    ).dt.days
 
     # -------------------------
-    # DISCIPLINE (DERIVED IF NOT PRESENT)
+    # TREND LOGIC
     # -------------------------
-    if "Discipline" not in df.columns:
-        def assign_discipline(name):
-            if pd.isna(name):
-                return "Unknown"
-            name = str(name).lower()
-            if "meica" in name or "electrical" in name:
-                return "MEICA"
-            if "civil" in name or "shaft" in name:
-                return "Civils"
-            if "procure" in name:
-                return "Procurement"
-            if "design" in name:
-                return "Design"
-            return "General"
+    def trend(row):
+        if pd.isna(row["CL32 Finish"]):
+            return "❓ Missing CL32"
+        if row["Variance (days)"] > 0:
+            return "🔺 Slipped"
+        if row["Variance (days)"] < 0:
+            return "🔻 Improved"
+        return "➖ No Change"
 
-        df["Discipline"] = df["Activity Name_CL31"].apply(assign_discipline)
+    df["Trend"] = df.apply(trend, axis=1)
 
     # -------------------------
-    # STATUS LOGIC
+    # STATUS ENGINE (KEY FIX)
     # -------------------------
-    def status(v):
-        if pd.isna(v):
-            return "🟡 No Data"
-        if v <= 0:
-            return "🟢 On Track"
-        elif v <= 5:
-            return "🟡 Minor Delay"
-        elif v <= 15:
-            return "🟠 At Risk"
-        else:
+    def status(row):
+        if pd.isna(row["CL32 Finish"]):
+            return "🟡 No Update"
+
+        v = row["Variance (days)"]
+
+        if v >= 7:
             return "🔴 Critical Delay"
+        if v >= 3:
+            return "🟠 At Risk"
+        if v > -3:
+            return "🟡 Monitor"
+        return "🟢 Ahead"
 
-    df["Status"] = df["Variance (days)"].apply(status)
-
-    # -------------------------
-    # FLOAT (if exists)
-    # -------------------------
-    if "Total Float_CL32" in df.columns:
-        df["Float"] = df["Total Float_CL32"]
-    else:
-        df["Float"] = 0
+    df["Status"] = df.apply(status, axis=1)
 
     # -------------------------
-    # FINAL CLEAN TABLE
+    # FLOAT (placeholder if missing)
     # -------------------------
-    final_cols = [
+    df["Float"] = df.get("Float", "")
+
+    # -------------------------
+    # FINAL OUTPUT TABLE
+    # -------------------------
+    return df[[
         "Activity ID",
         "Activity Name_CL31",
         "Discipline",
         "CL31 Finish",
         "CL32 Finish",
         "Variance (days)",
+        "Trend",
         "Float",
         "Status"
-    ]
-
-    return df[[c for c in final_cols if c in df.columns]]
+    ]]
