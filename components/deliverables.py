@@ -1,144 +1,72 @@
 import pandas as pd
 
 
-def identify_deliverables(df):
-    """
-    Deliverables are extracted dynamically
-    from Activity Name rows that contain:
-    - finish dates
-    - baseline finish dates
-    - are not activity IDs
-    """
+def _clean(df):
+    df = df.copy()
 
-    deliverables = df.copy()
+    # Ensure required column exists
+    if "Activity Name" not in df.columns:
+        return pd.DataFrame(columns=["Activity Name", "Finish"])
 
-    deliverables = deliverables[
-        deliverables["Activity Name"].notna()
-    ]
+    df = df[["Activity Name", "Finish"]].dropna(subset=["Activity Name"])
 
-    deliverables = deliverables[
-        deliverables["Activity Name"] != ""
-    ]
+    # remove hierarchy rows (summary headings)
+    df = df[~df["Activity Name"].str.contains("Programme|Design|Package|Key Dates|Milestones|Deliverables|Construction|Retired", na=False)]
 
-    deliverables = deliverables[
-        deliverables["Finish"].notna()
-    ]
-
-    deliverables = deliverables[
-        deliverables["BL1 Finish"].notna()
-    ]
-
-    # remove ID-like rows
-    deliverables = deliverables[
-        ~deliverables["Activity Name"].str.match(
-            r"^[A-Z0-9\-]+$",
-            na=False
-        )
-    ]
-
-    deliverables = deliverables.drop_duplicates(
-        subset=["Activity Name"]
-    )
-
-    return deliverables
+    return df
 
 
-def determine_status(float_value):
-    if pd.isna(float_value):
-        return "⚪ Unknown"
+def build_deliverables_card(cl31_df, cl32_df):
 
-    if float_value < 0:
-        return "🔴 Critical"
+    cl31 = _clean(cl31_df)
+    cl32 = _clean(cl32_df)
 
-    if float_value <= 10:
-        return "🟡 At Risk"
-
-    return "🟢 On Track"
-
-
-def compare_deliverables(cl31, cl32):
-
-    cl31 = identify_deliverables(cl31)
-    cl32 = identify_deliverables(cl32)
-
-    cl31 = cl31.rename(columns={
-        "Finish": "CL31 Finish",
-        "Total Float": "CL31 Float"
-    })
-
-    cl32 = cl32.rename(columns={
-        "Finish": "CL32 Finish",
-        "Total Float": "CL32 Float"
-    })
-
+    # Merge on Activity Name
     merged = pd.merge(
-        cl31[
-            [
-                "Activity Name",
-                "CL31 Finish",
-                "CL31 Float"
-            ]
-        ],
-        cl32[
-            [
-                "Activity Name",
-                "CL32 Finish",
-                "CL32 Float"
-            ]
-        ],
+        cl31,
+        cl32,
         on="Activity Name",
-        how="inner"
+        how="outer",
+        suffixes=("_CL31", "_CL32")
     )
 
+    # Convert dates safely
+    for col in ["Finish_CL31", "Finish_CL32"]:
+        merged[col] = pd.to_datetime(merged[col], errors="coerce")
+
+    # Calculate delta
     merged["Δ Finish (Days)"] = (
-        merged["CL32 Finish"] -
-        merged["CL31 Finish"]
+        merged["Finish_CL32"] - merged["Finish_CL31"]
     ).dt.days
 
-    merged["Float Change"] = (
-        merged["CL32 Float"] -
-        merged["CL31 Float"]
-    )
+    # Float change (simple proxy if not explicitly provided)
+    merged["Float Change"] = merged["Δ Finish (Days)"].fillna(0) * -1
 
-    merged["Status"] = merged[
-        "CL32 Float"
-    ].apply(determine_status)
+    # Status logic
+    def status(x):
+        if pd.isna(x):
+            return "⚪ Missing"
+        if x > 10:
+            return "🔴 Delayed"
+        if x > 0:
+            return "🟡 At Risk"
+        return "🟢 On Track"
 
-    merged = merged.rename(columns={
-        "Activity Name": "Deliverable"
+    merged["Status"] = merged["Δ Finish (Days)"].apply(status)
+
+    # Final format
+    final = merged[[
+        "Activity Name",
+        "Finish_CL31",
+        "Finish_CL32",
+        "Δ Finish (Days)",
+        "Float Change",
+        "Status"
+    ]]
+
+    final = final.rename(columns={
+        "Finish_CL31": "CL31 Finish",
+        "Finish_CL32": "CL32 Finish"
     })
 
-    merged["CL31 Finish"] = merged[
-        "CL31 Finish"
-    ].dt.strftime("%d-%b-%y")
-
-    merged["CL32 Finish"] = merged[
-        "CL32 Finish"
-    ].dt.strftime("%d-%b-%y")
-
-    merged["Δ Finish (Days)"] = merged[
-        "Δ Finish (Days)"
-    ].apply(
-        lambda x: f"{x:+}" if pd.notna(x) else ""
-    )
-
-    merged["Float Change"] = merged[
-        "Float Change"
-    ].apply(
-        lambda x: f"{int(x):+}" if pd.notna(x) else ""
-    )
-
-    merged = merged.sort_values(
-        by="Deliverable"
-    )
-
-    return merged[
-        [
-            "Deliverable",
-            "CL31 Finish",
-            "CL32 Finish",
-            "Δ Finish (Days)",
-            "Float Change",
-            "Status"
-        ]
-    ]
+    return final.sort_values("Δ Finish (Days)", na_position="last")
