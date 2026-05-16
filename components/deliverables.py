@@ -1,52 +1,61 @@
-# components/deliverables.py
 import pandas as pd
 
 def build_design_control_table(cl31, cl32):
 
     # -------------------------
-    # MERGE (THIS FIXES YOUR ISSUE)
+    # SAFE COLUMN CHECKS
+    # -------------------------
+    if "Discipline" not in cl31.columns:
+        cl31["Discipline"] = "Unknown"
+
+    # -------------------------
+    # MERGE
     # -------------------------
     df = cl31.merge(
-        cl32[["Activity ID", "CL32 Finish"]],
+        cl32[["Activity ID", "CL32 Finish"]] if "CL32 Finish" in cl32.columns else cl32[["Activity ID"]],
         on="Activity ID",
         how="left"
     )
 
     # -------------------------
-    # RENAME SAFE FIELDS
+    # ENSURE CORE COLUMNS EXIST
     # -------------------------
+    df["CL31 Finish"] = df["CL31 Finish"] if "CL31 Finish" in df.columns else pd.NaT
+    df["CL32 Finish"] = df["CL32 Finish"] if "CL32 Finish" in df.columns else pd.NaT
+
     if "Activity Name_CL31" not in df.columns:
-        df["Activity Name_CL31"] = df.get("Activity Name", "")
+        df["Activity Name_CL31"] = df.get("Activity Name", "Unknown")
+
+    if "Discipline" not in df.columns:
+        df["Discipline"] = "Unknown"
 
     # -------------------------
-    # VARIANCE CALCULATION
+    # VARIANCE
     # -------------------------
-    df["Variance (days)"] = (
-        df["CL32 Finish"] - df["CL31 Finish"]
-    ).dt.days
+    df["Variance (days)"] = (df["CL32 Finish"] - df["CL31 Finish"]).dt.days
 
     # -------------------------
-    # TREND LOGIC
+    # TREND
     # -------------------------
-    def trend(row):
-        if pd.isna(row["CL32 Finish"]):
+    def trend(r):
+        if pd.isna(r["CL32 Finish"]):
             return "❓ Missing CL32"
-        if row["Variance (days)"] > 0:
+        if r["Variance (days)"] > 0:
             return "🔺 Slipped"
-        if row["Variance (days)"] < 0:
+        if r["Variance (days)"] < 0:
             return "🔻 Improved"
         return "➖ No Change"
 
     df["Trend"] = df.apply(trend, axis=1)
 
     # -------------------------
-    # STATUS ENGINE (KEY FIX)
+    # STATUS
     # -------------------------
-    def status(row):
-        if pd.isna(row["CL32 Finish"]):
+    def status(r):
+        if pd.isna(r["CL32 Finish"]):
             return "🟡 No Update"
 
-        v = row["Variance (days)"]
+        v = r["Variance (days)"]
 
         if v >= 7:
             return "🔴 Critical Delay"
@@ -59,12 +68,12 @@ def build_design_control_table(cl31, cl32):
     df["Status"] = df.apply(status, axis=1)
 
     # -------------------------
-    # FLOAT (placeholder if missing)
+    # FLOAT
     # -------------------------
-    df["Float"] = df.get("Float", "")
+    df["Float"] = ""
 
     # -------------------------
-    # FINAL OUTPUT TABLE
+    # FINAL SAFE OUTPUT
     # -------------------------
     return df[[
         "Activity ID",
