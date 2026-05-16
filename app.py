@@ -1,28 +1,45 @@
 import streamlit as st
-
 from utils.loader import load_programme
-from utils.deliverables import compare_deliverables
+from components.deliverables import build_deliverables_card
 
-
+# ----------------------------
+# PAGE CONFIG
+# ----------------------------
 st.set_page_config(
-    page_title="CL31 vs CL32 Deliverables",
+    page_title="CL31 vs CL32 Deliverables Tracker",
     layout="wide"
 )
 
-CL31_FILE = "data/CL31.xlsx"
-CL32_FILE = "data/CL32.xlsx"
+st.title("📊 CL31 vs CL32 Programme Deliverables Tracker")
 
-cl31 = load_programme(CL31_FILE)
-cl32 = load_programme(CL32_FILE)
+# ----------------------------
+# LOAD DATA
+# ----------------------------
+cl31_file = "data/CL31.xlsx"
+cl32_file = "data/CL32.xlsx"
 
-comparison = compare_deliverables(cl31, cl32)
+cl31_df = load_programme(cl31_file)
+cl32_df = load_programme(cl32_file)
 
-st.title("Deliverables Comparison")
+# ----------------------------
+# VALIDATION
+# ----------------------------
+if cl31_df is None or cl32_df is None:
+    st.error("Failed to load programme data. Check Excel files and loader.")
+    st.stop()
 
-st.markdown("### CL31 vs CL32")
+# ----------------------------
+# BUILD DELIVERABLE CARD
+# ----------------------------
+card_df = build_deliverables_card(cl31_df, cl32_df)
+
+# ----------------------------
+# DISPLAY (SINGLE CARD ONLY)
+# ----------------------------
+st.subheader("📌 Deliverables Comparison (CL31 vs CL32)")
 
 st.dataframe(
-    comparison,
+    card_df,
     use_container_width=True,
     hide_index=True
 )
