@@ -1,17 +1,25 @@
 import pandas as pd
 
 
+def _get_col(df, preferred, fallback=None):
+    """Safely get column that may or may not exist"""
+    if preferred in df.columns:
+        return df[preferred]
+    if fallback and fallback in df.columns:
+        return df[fallback]
+    return pd.Series([pd.NaT] * len(df))
+
+
 def _clean(df):
     df = df.copy()
 
-    # Ensure required column exists
+    # strip column spaces (VERY IMPORTANT in Excel files)
+    df.columns = df.columns.str.strip()
+
     if "Activity Name" not in df.columns:
-        return pd.DataFrame(columns=["Activity Name", "Finish"])
+        return pd.DataFrame()
 
-    df = df[["Activity Name", "Finish"]].dropna(subset=["Activity Name"])
-
-    # remove hierarchy rows (summary headings)
-    df = df[~df["Activity Name"].str.contains("Programme|Design|Package|Key Dates|Milestones|Deliverables|Construction|Retired", na=False)]
+    df = df[df["Activity Name"].notna()]
 
     return df
 
@@ -21,28 +29,39 @@ def build_deliverables_card(cl31_df, cl32_df):
     cl31 = _clean(cl31_df)
     cl32 = _clean(cl32_df)
 
-    # Merge on Activity Name
+    # -----------------------------
+    # SAFE FINISH COLUMN HANDLING
+    # -----------------------------
+    cl31["Finish"] = _get_col(cl31, "BL1 Finish", "Finish")
+    cl32["Finish"] = _get_col(cl32, "BL1 Finish", "Finish")
+
+    # Convert dates safely
+    cl31["Finish"] = pd.to_datetime(cl31["Finish"], errors="coerce")
+    cl32["Finish"] = pd.to_datetime(cl32["Finish"], errors="coerce")
+
+    # -----------------------------
+    # MERGE
+    # -----------------------------
     merged = pd.merge(
-        cl31,
-        cl32,
+        cl31[["Activity Name", "Finish"]],
+        cl32[["Activity Name", "Finish"]],
         on="Activity Name",
         how="outer",
         suffixes=("_CL31", "_CL32")
     )
 
-    # Convert dates safely
-    for col in ["Finish_CL31", "Finish_CL32"]:
-        merged[col] = pd.to_datetime(merged[col], errors="coerce")
-
-    # Calculate delta
+    # -----------------------------
+    # DELTA CALC
+    # -----------------------------
     merged["Δ Finish (Days)"] = (
         merged["Finish_CL32"] - merged["Finish_CL31"]
     ).dt.days
 
-    # Float change (simple proxy if not explicitly provided)
     merged["Float Change"] = merged["Δ Finish (Days)"].fillna(0) * -1
 
-    # Status logic
+    # -----------------------------
+    # STATUS RULES
+    # -----------------------------
     def status(x):
         if pd.isna(x):
             return "⚪ Missing"
@@ -54,7 +73,9 @@ def build_deliverables_card(cl31_df, cl32_df):
 
     merged["Status"] = merged["Δ Finish (Days)"].apply(status)
 
-    # Final format
+    # -----------------------------
+    # FINAL OUTPUT
+    # -----------------------------
     final = merged[[
         "Activity Name",
         "Finish_CL31",
