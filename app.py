@@ -4,61 +4,61 @@ import pandas as pd
 from loader import load_schedule
 from deliverables import build_deliverables
 
-
 st.set_page_config(layout="wide")
 
-st.title("📊 Deliverable Tracker (CL31 vs CL32)")
+st.title("📊 CL31 vs CL32 Deliverable Tracker")
 
 
-# ---------- FILE INPUTS ----------
-cl31_file = st.file_uploader("Upload CL31 Excel", type=["xlsx"])
-cl32_file = st.file_uploader("Upload CL32 Excel", type=["xlsx"])
+# =========================
+# LOAD FILES (FROM DATA FOLDER)
+# =========================
+CL31_PATH = "data/CL31-February.xlsx"
+CL32_PATH = "data/CL32-May.xlsx"
+
+df31 = load_schedule(CL31_PATH)
+df32 = load_schedule(CL32_PATH)
 
 
-if cl31_file and cl32_file:
+# =========================
+# BUILD DELIVERABLE TABLE
+# =========================
+result = build_deliverables(df31, df32)
 
-    df31 = load_schedule(cl31_file)
-    df32 = load_schedule(cl32_file)
 
-    # ---------- ALIGN DATA ----------
-    # Merge on Activity Name (your requirement)
-    merged = pd.merge(
-        df31,
-        df32,
-        on="Activity Name",
-        how="outer",
-        suffixes=("_CL31", "_CL32")
-    )
+# =========================
+# FILTERS (SIDEBAR)
+# =========================
+st.sidebar.header("Filters")
 
-    # Rebuild clean structure
-    clean = pd.DataFrame()
-    clean["Activity Name"] = merged["Activity Name"]
+status_options = result["Change Type"].unique()
 
-    clean["BL1 Finish"] = merged.get("BL1 Finish_CL31")
-    clean["Finish"] = merged.get("Finish_CL32")
+selected_status = st.sidebar.multiselect(
+    "Change Type",
+    options=status_options,
+    default=status_options
+)
 
-    # ---------- BUILD DELIVERABLE TABLE ----------
-    result = build_deliverables(clean)
+filtered = result[result["Change Type"].isin(selected_status)]
 
-    # ---------- SIDEBAR FILTERS ----------
-    st.sidebar.header("Filters")
 
-    status_filter = st.sidebar.multiselect(
-        "Change Type",
-        options=result["Change Type"].unique(),
-        default=result["Change Type"].unique()
-    )
+# =========================
+# KPI CARDS
+# =========================
+col1, col2, col3, col4 = st.columns(4)
 
-    filtered = result[result["Change Type"].isin(status_filter)]
+col1.metric("Total Deliverables", len(result))
+col2.metric("NEW", (result["Change Type"] == "NEW").sum())
+col3.metric("DELAYED", (result["Change Type"] == "DELAYED").sum())
+col4.metric("UNCHANGED", (result["Change Type"] == "UNCHANGED").sum())
 
-    # ---------- MAIN TABLE ----------
-    st.subheader("Deliverables Comparison Table")
 
-    st.dataframe(
-        filtered,
-        use_container_width=True,
-        hide_index=True
-    )
+# =========================
+# TABLE
+# =========================
+st.subheader("Deliverable Comparison Table")
 
-else:
-    st.info("Upload both CL31 and CL32 files to generate tracker.")
+st.dataframe(
+    filtered,
+    use_container_width=True,
+    hide_index=True
+)
