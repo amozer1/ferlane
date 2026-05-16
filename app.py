@@ -1,48 +1,37 @@
 import streamlit as st
-from loader import load_programme
-from deliverables import extract_deliverables, compare_cl31_cl32
 
-st.set_page_config(page_title="Programme Deliverables Tracker", layout="wide")
+from utils.loader import load_programmes
+from components.deliverables import build_deliverables
 
-st.title("📊 CL31 vs CL32 Deliverables Comparison")
+st.set_page_config(page_title="CL31 vs CL32 Dashboard", layout="wide")
 
-# AUTO LOAD FILES (no manual clicks required)
-CL31_FILE = "data/CL31.xlsx"
-CL32_FILE = "data/CL32.xlsx"
+st.title("Programme Deliverables Comparison (CL31 vs CL32)")
 
-df31_raw = load_programme(CL31_FILE)
-df32_raw = load_programme(CL32_FILE)
+CL31_FILE = "data/CL31-February.xlsx"
+CL32_FILE = "data/CL32-May.xlsx"
 
-# Extract deliverables dynamically
-df31 = extract_deliverables(df31_raw)
-df32 = extract_deliverables(df32_raw)
+df31 = load_programmes(CL31_FILE)
+df32 = load_programmes(CL32_FILE)
 
-# Compare
-result = compare_cl31_cl32(df31, df32)
+deliverables_df = build_deliverables(df31, df32)
 
-# Status logic (visual layer)
-def status(row):
-    if row["Change Type"] == "DELAYED":
-        return "🔴 Delayed"
-    if row["Change Type"] == "AHEAD":
-        return "🟢 Ahead"
-    if row["Change Type"] == "NEW":
-        return "🟡 New"
-    if row["Change Type"] == "REMOVED":
-        return "⚫ Removed"
-    return "⚪ Unchanged"
+deliverables_df = deliverables_df[
+    [
+        "Activity Name",
+        "CL31 Finish",
+        "CL32 Finish",
+        "Delta (Days)",
+        "Change Type",
+        "Status / Comment"
+    ]
+]
 
-result["Status / Comment"] = result.apply(status, axis=1)
-
-# Display
-st.dataframe(result, use_container_width=True)
-
-# Summary
-st.subheader("Summary")
+st.subheader("Deliverables Comparison Table")
+st.dataframe(deliverables_df, use_container_width=True)
 
 col1, col2, col3, col4 = st.columns(4)
 
-col1.metric("Total Deliverables", len(result))
-col2.metric("Delayed", (result["Change Type"] == "DELAYED").sum())
-col3.metric("New", (result["Change Type"] == "NEW").sum())
-col4.metric("Removed", (result["Change Type"] == "REMOVED").sum())
+col1.metric("Total Deliverables", len(deliverables_df))
+col2.metric("Delayed", (deliverables_df["Change Type"] == "DELAYED").sum())
+col3.metric("New", (deliverables_df["Change Type"] == "NEW").sum())
+col4.metric("Removed", (deliverables_df["Change Type"] == "REMOVED").sum())
