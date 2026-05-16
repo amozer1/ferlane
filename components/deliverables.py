@@ -1,76 +1,76 @@
 import pandas as pd
 
-
-def build_deliverables_card(cl31: pd.DataFrame, cl32: pd.DataFrame):
-
-    # -------------------------
-    # KEEP ONLY REQUIRED FIELDS
-    # -------------------------
-    cl31 = cl31[["Activity Name", "Start", "Finish"]].copy()
-    cl32 = cl32[["Activity Name", "Start", "Finish"]].copy()
-
-    cl31 = cl31.rename(columns={
-        "Start": "CL31 Start",
-        "Finish": "CL31 Finish"
-    })
-
-    cl32 = cl32.rename(columns={
-        "Start": "CL32 Start",
-        "Finish": "CL32 Finish"
-    })
+def build_design_control_table(cl31, cl32):
 
     # -------------------------
-    # MERGE BY ACTIVITY NAME
+    # MERGE
     # -------------------------
-    df = pd.merge(cl31, cl32, on="Activity Name", how="outer")
+    df = pd.merge(
+        cl32,
+        cl31[["Activity ID", "CL31 Finish", "CL31 Float"]],
+        on="Activity ID",
+        how="left"
+    )
 
     # -------------------------
-    # CONVERT TO DATETIME (SAFE)
+    # DATE CONVERSION
     # -------------------------
-    for col in ["CL31 Start", "CL31 Finish", "CL32 Start", "CL32 Finish"]:
-        df[col] = pd.to_datetime(df[col], errors="coerce", dayfirst=True)
+    df["CL31 Finish"] = pd.to_datetime(df["CL31 Finish"], errors="coerce")
+    df["CL32 Finish"] = pd.to_datetime(df["CL32 Finish"], errors="coerce")
 
     # -------------------------
-    # DELTA CALCULATIONS
+    # DELTAS
     # -------------------------
-    df["Δ Start (Days)"] = (df["CL32 Start"] - df["CL31 Start"]).dt.days
-    df["Δ Finish (Days)"] = (df["CL32 Finish"] - df["CL31 Finish"]).dt.days
+    df["Finish Δ (days)"] = (df["CL32 Finish"] - df["CL31 Finish"]).dt.days
+    df["Float Δ"] = df["CL32 Float"] - df["CL31 Float"]
 
     # -------------------------
-    # STATUS LOGIC
+    # RISK LOGIC
     # -------------------------
     def status(row):
-        if pd.isna(row["Δ Finish (Days)"]) and pd.isna(row["Δ Start (Days)"]):
-            return "⚪ No Change"
+        if pd.isna(row["Finish Δ (days)"]):
+            return "⚪ No Data"
 
-        if (row["Δ Finish (Days)"] or 0) > 20:
-            return "🔴 Major Delay"
+        if row["CL32 Float"] <= 0 or row["Finish Δ (days)"] > 3:
+            return "🔴 Critical"
 
-        if (row["Δ Finish (Days)"] or 0) > 0 or (row["Δ Start (Days)"] or 0) > 0:
-            return "🔴 Changed (Delayed)"
+        if row["Finish Δ (days)"] > 1 or row["Float Δ"] < 0:
+            return "🟠 At Risk"
 
-        if (row["Δ Finish (Days)"] or 0) < 0:
-            return "🟢 Improved"
+        if row["Finish Δ (days)"] == 0:
+            return "🟢 Stable"
 
-        return "🟡 Minor Change"
+        return "🟡 Watch"
 
     df["Status"] = df.apply(status, axis=1)
 
     # -------------------------
-    # FINAL OUTPUT FORMAT
+    # ACTION ENGINE
     # -------------------------
-    df["CL31 Start"] = df["CL31 Start"].dt.strftime("%d-%b-%Y")
-    df["CL31 Finish"] = df["CL31 Finish"].dt.strftime("%d-%b-%Y")
-    df["CL32 Start"] = df["CL32 Start"].dt.strftime("%d-%b-%Y")
-    df["CL32 Finish"] = df["CL32 Finish"].dt.strftime("%d-%b-%Y")
+    def action(x):
+        if "🔴" in x:
+            return "Escalate"
+        if "🟠" in x:
+            return "Monitor"
+        if "🟡" in x:
+            return "Review"
+        return "None"
 
+    df["Action"] = df["Status"].apply(action)
+
+    # -------------------------
+    # FINAL TABLE
+    # -------------------------
     return df[[
+        "Activity ID",
         "Activity Name",
-        "CL31 Start",
-        "CL32 Start",
+        "Discipline",
         "CL31 Finish",
         "CL32 Finish",
-        "Δ Start (Days)",
-        "Δ Finish (Days)",
-        "Status"
+        "Finish Δ (days)",
+        "CL31 Float",
+        "CL32 Float",
+        "Float Δ",
+        "Status",
+        "Action"
     ]]

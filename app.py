@@ -1,46 +1,58 @@
 import streamlit as st
-from utils.loader import load_programme
-from components.deliverables import build_deliverables_card
+from loader import load_cl31, load_cl32
+from deliverables import build_design_control_table
 
 st.set_page_config(layout="wide")
 
-st.title("Deliverable Tracker Dashboard")
+st.title("Design Management Control Dashboard (CL31 vs CL32)")
 
 # -------------------------
-# FILE PATHS
+# LOAD DATA
 # -------------------------
-CL31_PATH = "data/CL31.xlsx"
-CL32_PATH = "data/CL32.xlsx"
-
+cl31 = load_cl31("CL31.xlsx")
+cl32 = load_cl32("CL32.xlsx")
 
 # -------------------------
-# CACHE LOAD
+# BUILD TABLE
 # -------------------------
-@st.cache_data
-def load_data():
-    cl31_df = load_programme(CL31_PATH)
-    cl32_df = load_programme(CL32_PATH)
-    return cl31_df, cl32_df
+df = build_design_control_table(cl31, cl32)
 
+# -------------------------
+# FILTERS (OPTIONAL BUT POWERFUL)
+# -------------------------
+col1, col2 = st.columns(2)
 
-try:
-    # -------------------------
-    # LOAD DATASETS
-    # -------------------------
-    cl31_df, cl32_df = load_data()
+with col1:
+    status_filter = st.multiselect(
+        "Filter Status",
+        df["Status"].unique(),
+        default=df["Status"].unique()
+    )
 
-    # -------------------------
-    # BUILD COMPARISON TABLE
-    # -------------------------
-    final_df = build_deliverables_card(cl31_df, cl32_df)
+with col2:
+    discipline_filter = st.multiselect(
+        "Filter Discipline",
+        df["Discipline"].dropna().unique(),
+        default=df["Discipline"].dropna().unique()
+    )
 
-    # -------------------------
-    # DISPLAY
-    # -------------------------
-    st.subheader("Schedule Summary (CL31 vs CL32)")
+filtered_df = df[
+    df["Status"].isin(status_filter) &
+    df["Discipline"].isin(discipline_filter)
+]
 
-    st.dataframe(final_df, use_container_width=True, hide_index=True)
+# -------------------------
+# COLOURING
+# -------------------------
+def style(row):
+    if "🔴" in row["Status"]:
+        return ["background-color:#ffcccc"] * len(row)
+    if "🟠" in row["Status"]:
+        return ["background-color:#ffe5cc"] * len(row)
+    if "🟡" in row["Status"]:
+        return ["background-color:#fff7cc"] * len(row)
+    if "🟢" in row["Status"]:
+        return ["background-color:#e6ffe6"] * len(row)
+    return [""] * len(row)
 
-except FileNotFoundError as e:
-    st.error(f"Missing file: {e}")
-    st.info("Ensure CL31.xlsx and CL32.xlsx are inside the /data folder.")
+st.dataframe(filtered_df.style.apply(style, axis=1), use_container_width=True)
