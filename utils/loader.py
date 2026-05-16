@@ -1,55 +1,45 @@
+# loader.py
 import pandas as pd
+from pathlib import Path
+
+DATA_PATH = Path("data")
+
+CL31_FILE = DATA_PATH / "CL31-February.xlsx"
+CL32_FILE = DATA_PATH / "CL32-May.xlsx"
 
 
-CL31_PATH = "data/CL31-February.xlsx"
-CL32_PATH = "data/CL32-May.xlsx"
+def load_excel(file_path: Path) -> pd.DataFrame:
+    if not file_path.exists():
+        raise FileNotFoundError(f"Missing file: {file_path}")
+    return pd.read_excel(file_path)
 
 
-def load_programme(path: str) -> pd.DataFrame:
-    """
-    Strict auto-load from repo only.
-    """
-    df = pd.read_excel(path, engine="openpyxl")
-    df.columns = df.columns.str.strip()
+def clean_columns(df: pd.DataFrame) -> pd.DataFrame:
+    df.columns = [c.strip() for c in df.columns]
     return df
 
 
-def prepare_comparison_df():
+def flatten_schedule(df: pd.DataFrame) -> pd.DataFrame:
+    df = clean_columns(df)
 
-    df31 = load_programme(CL31_PATH)
-    df32 = load_programme(CL32_PATH)
+    rename_map = {
+        "Activity Name": "name",
+        "Finish": "finish",
+        "Start": "start",
+        "Activity ID": "id"
+    }
 
-    # Standardise structure
-    df31 = df31[["Activity Name", "Finish"]].copy()
-    df32 = df32[["Activity Name", "Finish"]].copy()
+    df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
 
-    df31.columns = ["Deliverable", "CL31 Finish"]
-    df32.columns = ["Deliverable", "CL32 Finish"]
+    if "name" not in df.columns:
+        raise ValueError("Missing 'Activity Name' column in file")
 
-    # Convert dates
-    df31["CL31 Finish"] = pd.to_datetime(df31["CL31 Finish"], errors="coerce")
-    df32["CL32 Finish"] = pd.to_datetime(df32["CL32 Finish"], errors="coerce")
-
-    # Merge ALL deliverables (CL32 drives structure)
-    df = pd.merge(df31, df32, on="Deliverable", how="outer")
-
-    # Delta
-    df["Delta (Days)"] = (df["CL32 Finish"] - df["CL31 Finish"]).dt.days
-
-    # Classification
-    def classify(r):
-        if pd.isna(r["CL31 Finish"]) and pd.notna(r["CL32 Finish"]):
-            return "NEW"
-        if pd.isna(r["CL32 Finish"]) and pd.notna(r["CL31 Finish"]):
-            return "REMOVED"
-        if pd.isna(r["Delta (Days)"]):
-            return "UNKNOWN"
-        if r["Delta (Days)"] < 0:
-            return "ACCELERATED"
-        if r["Delta (Days)"] > 0:
-            return "DELAYED"
-        return "UNCHANGED"
-
-    df["Change Type"] = df.apply(classify, axis=1)
+    df = df[df["name"].notna()].copy()
 
     return df
+
+
+def load_programmes():
+    cl31 = flatten_schedule(load_excel(CL31_FILE))
+    cl32 = flatten_schedule(load_excel(CL32_FILE))
+    return cl31, cl32

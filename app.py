@@ -1,25 +1,81 @@
+# app.py
 import streamlit as st
-from utils.loader import prepare_comparison_df
-from components.deliverables import render_deliverables
+from loader import load_programmes
+from deliverables import compare
 
-st.set_page_config(layout="wide")
+# -----------------------------
+# PAGE CONFIG
+# -----------------------------
+st.set_page_config(page_title="CL Deliverables Tracker", layout="wide")
 
-st.title("Deliverables Dashboard (CL31 vs CL32)")
+st.title("📊 CL31-Feb vs CL32-May Deliverables Tracker")
 
-st.caption("Auto-loading CL31-May and CL32-May from repository")
 
-try:
-    df = prepare_comparison_df()
+# -----------------------------
+# LOAD DATA
+# -----------------------------
+@st.cache_data
+def get_data():
+    cl31, cl32 = load_programmes()
+    return compare(cl31, cl32)
 
-    if df.empty:
-        st.error("No data found in CL31/CL32 files")
-    else:
-        render_deliverables(df)
 
-except FileNotFoundError as e:
-    st.error("Missing required data files in /data folder")
-    st.exception(e)
+df = get_data()
 
-except Exception as e:
-    st.error("Error processing programme data")
-    st.exception(e)
+
+# -----------------------------
+# METRICS
+# -----------------------------
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("Total Deliverables", len(df))
+col2.metric("Delayed", len(df[df["change_type"] == "DELAYED"]))
+col3.metric("New", len(df[df["change_type"] == "NEW"]))
+col4.metric("Removed", len(df[df["change_type"] == "REMOVED"]))
+
+
+# -----------------------------
+# FILTERS
+# -----------------------------
+st.sidebar.header("Filters")
+
+types = df["change_type"].dropna().unique()
+
+selected = st.sidebar.multiselect(
+    "Change Type Filter",
+    types,
+    default=types
+)
+
+filtered = df[df["change_type"].isin(selected)]
+
+
+# -----------------------------
+# TABLE OUTPUT
+# -----------------------------
+st.subheader("Deliverable Comparison Table")
+
+st.dataframe(
+    filtered[[
+        "deliverable",
+        "cl31_finish",
+        "cl32_finish",
+        "delta_days",
+        "change_type",
+        "status_comment"
+    ]],
+    use_container_width=True
+)
+
+
+# -----------------------------
+# DOWNLOAD
+# -----------------------------
+csv = filtered.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    "⬇️ Download CSV",
+    csv,
+    "deliverables_cl31_cl32_comparison.csv",
+    "text/csv"
+)
