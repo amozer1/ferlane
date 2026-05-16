@@ -1,60 +1,44 @@
 import pandas as pd
 
 
-def clean_dates(df):
-    date_cols = [
-        "Start",
-        "Finish",
-        "BL1 Start",
-        "BL1 Finish"
-    ]
+def load_programme(file_path):
+    """
+    Robust loader for CL31 / CL32 Excel files
+    - No strict column enforcement
+    - Cleans headers
+    - Handles P6 / Excel export inconsistencies
+    """
 
-    for col in date_cols:
-        if col in df.columns:
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.replace("A", "", regex=False)
-                .str.replace("*", "", regex=False)
-                .str.strip()
-            )
+    df = pd.read_excel(file_path, engine="openpyxl")
 
-            df[col] = pd.to_datetime(
-                df[col],
-                format="%d-%b-%y",
-                errors="coerce"
-            )
-
-    return df
-
-
-def load_programme(path):
-    df = pd.read_excel(path)
-
-    df.columns = [c.strip() for c in df.columns]
-
-    required = [
-        "Activity Name",
-        "Finish",
-        "BL1 Finish",
-        "Total Float"
-    ]
-
-    for col in required:
-        if col not in df.columns:
-            raise ValueError(f"Missing column: {col}")
-
-    df = clean_dates(df)
-
-    df["Activity Name"] = (
-        df["Activity Name"]
+    # -----------------------------
+    # CLEAN COLUMN HEADERS
+    # -----------------------------
+    df.columns = (
+        df.columns
         .astype(str)
         .str.strip()
+        .str.replace("\n", " ")
     )
 
-    df["Total Float"] = pd.to_numeric(
-        df["Total Float"],
-        errors="coerce"
-    )
+    # -----------------------------
+    # BASIC VALIDATION ONLY
+    # -----------------------------
+    if "Activity Name" not in df.columns:
+        raise ValueError(
+            "Missing required column: 'Activity Name'. "
+            "Check Excel export format."
+        )
+
+    # -----------------------------
+    # OPTIONAL CLEANING
+    # -----------------------------
+    df = df.copy()
+
+    # remove fully empty rows
+    df = df.dropna(how="all")
+
+    # ensure Activity Name is usable
+    df = df[df["Activity Name"].notna()]
 
     return df
