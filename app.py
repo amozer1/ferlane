@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 from utils.loader import load_cl31, load_cl32
 from components.deliverables import build_deliverables_report
@@ -13,34 +14,37 @@ cl32 = load_cl32()
 df = build_deliverables_report(cl31, cl32)
 
 # -----------------------------
-# COLOUR LOGIC
+# COLOUR LOGIC (UPDATED)
 # -----------------------------
-def color_status(val):
+def status_color(val):
     if val == "DELAYED":
-        return "background-color: #ffcccc; color: black;"
+        return "background-color: #ffcccc"
     if val == "AHEAD":
-        return "background-color: #cce5ff; color: black;"
+        return "background-color: #cce5ff"
     if val == "UNCHANGED":
-        return "background-color: #e6ffe6; color: black;"
+        return "background-color: #e6ffe6"
     if val == "NEW":
-        return "background-color: #fff3cd; color: black;"
+        return "background-color: #fff3cd"
     if val == "REMOVED":
-        return "background-color: #d6d6d6; color: black;"
+        return "background-color: #d6d6d6"
     return ""
 
-def color_delta(val):
+def delta_color(val):
     if pd.isna(val):
         return ""
     if val > 0:
-        return "color: red; font-weight: bold;"
+        return "color: red; font-weight: bold"
     if val < 0:
-        return "color: green; font-weight: bold;"
-    return "color: black;"
+        return "color: green; font-weight: bold"
+    return ""
 
+# -----------------------------
+# STYLER (FIXED)
+# -----------------------------
 styled_df = (
     df.style
-    .applymap(color_status, subset=["Status"])
-    .applymap(color_delta, subset=["Delta (Days)"])
+    .map(status_color, subset=["Status"])
+    .map(delta_color, subset=["Delta (Days)"])
     .set_properties(**{
         "text-align": "left",
         "font-size": "14px"
