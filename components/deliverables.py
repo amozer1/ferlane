@@ -1,9 +1,19 @@
 import pandas as pd
 
 
-def _clean(df):
+def _normalize_columns(df):
     df = df.copy()
-    df.columns = df.columns.str.strip()
+    df.columns = (
+        df.columns
+        .astype(str)
+        .str.strip()
+        .str.replace("\n", " ")
+    )
+    return df
+
+
+def _clean(df):
+    df = _normalize_columns(df)
 
     if "Activity Name" not in df.columns:
         return pd.DataFrame()
@@ -12,11 +22,13 @@ def _clean(df):
     return df
 
 
-def _get_finish(df, primary, fallback="Finish"):
-    if primary in df.columns:
-        return pd.to_datetime(df[primary], errors="coerce")
-    if fallback in df.columns:
-        return pd.to_datetime(df[fallback], errors="coerce")
+def _find_finish_column(df, candidates):
+    """
+    Finds first matching column from list of possible names
+    """
+    for c in candidates:
+        if c in df.columns:
+            return pd.to_datetime(df[c], errors="coerce")
     return pd.Series([pd.NaT] * len(df))
 
 
@@ -26,13 +38,20 @@ def build_deliverables_card(cl31_df, cl32_df):
     cl32 = _clean(cl32_df)
 
     # -----------------------------
-    # STANDARDISE FINISH FIELDS
+    # SAFE COLUMN DETECTION
     # -----------------------------
-    cl31["CL31 Finish"] = _get_finish(cl31, "BL Project Finish")
-    cl32["CL32 Finish"] = _get_finish(cl32, "BL1 Finish")
+    cl31["CL31 Finish"] = _find_finish_column(
+        cl31,
+        ["BL Project Finish", "Finish", "BL Finish", "Baseline Finish"]
+    )
+
+    cl32["CL32 Finish"] = _find_finish_column(
+        cl32,
+        ["BL1 Finish", "BL Finish", "Finish", "Baseline Finish"]
+    )
 
     # -----------------------------
-    # MERGE ONLY WHAT WE NEED
+    # MERGE
     # -----------------------------
     merged = pd.merge(
         cl31[["Activity Name", "CL31 Finish"]],
@@ -42,7 +61,7 @@ def build_deliverables_card(cl31_df, cl32_df):
     )
 
     # -----------------------------
-    # DELTA CALCULATION
+    # DELTA
     # -----------------------------
     merged["Δ Finish (Days)"] = (
         merged["CL32 Finish"] - merged["CL31 Finish"]
@@ -51,7 +70,7 @@ def build_deliverables_card(cl31_df, cl32_df):
     merged["Float Change"] = merged["Δ Finish (Days)"].fillna(0) * -1
 
     # -----------------------------
-    # STATUS LOGIC
+    # STATUS
     # -----------------------------
     def status(x):
         if pd.isna(x):
@@ -65,15 +84,17 @@ def build_deliverables_card(cl31_df, cl32_df):
     merged["Status"] = merged["Δ Finish (Days)"].apply(status)
 
     # -----------------------------
-    # FINAL OUTPUT CARD
+    # FINAL OUTPUT
     # -----------------------------
-    final = merged[[
-        "Activity Name",
-        "CL31 Finish",
-        "CL32 Finish",
-        "Δ Finish (Days)",
-        "Float Change",
-        "Status"
-    ]]
+    final = merged[
+        [
+            "Activity Name",
+            "CL31 Finish",
+            "CL32 Finish",
+            "Δ Finish (Days)",
+            "Float Change",
+            "Status"
+        ]
+    ]
 
     return final.sort_values("Δ Finish (Days)", na_position="last")
