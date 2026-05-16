@@ -18,7 +18,7 @@ result = build_deliverables(df31, df32)
 
 
 # =========================
-# COLOURING
+# COLOUR FUNCTIONS (NEW API)
 # =========================
 def color_change(val):
     if val == "NEW":
@@ -35,23 +35,22 @@ def color_change(val):
 def color_delta(val):
     if pd.isna(val):
         return ""
-    try:
+    if isinstance(val, (int, float)):
         if val > 0:
             return "color:red"
         if val < 0:
             return "color:green"
-    except:
-        return ""
     return ""
 
 
-styled = result.style.applymap(
-    color_change,
-    subset=["Change Type"]
-).applymap(
-    color_delta,
-    subset=["Delta (Days)"]
-)
+# =========================
+# APPLY STYLING (FIXED)
+# =========================
+styled = result.style
+
+# Pandas 2.x replacement for applymap
+styled = styled.map(color_change, subset=["Change Type"])
+styled = styled.map(color_delta, subset=["Delta (Days)"])
 
 
 # =========================
