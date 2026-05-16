@@ -1,6 +1,7 @@
 import streamlit as st
 from loader import load_cl31, load_cl32
 from deliverables import build_deliverables
+from cards.chart_card import render_pie   # 👈 FIXED IMPORT PATH
 
 st.set_page_config(layout="wide")
 
@@ -25,12 +26,13 @@ col3.metric("DELAYED", (result["Change Type"] == "DELAYED").sum())
 col4.metric("EARLY", (result["Change Type"] == "EARLY").sum())
 
 # =========================
-# TABLE ONLY
+# PIE CARD
+# =========================
+render_pie(result)
+
+# =========================
+# TABLE
 # =========================
 st.subheader("Deliverable Comparison Table")
 
 st.dataframe(result, use_container_width=True, hide_index=True)
-
-from chart_card import render_pie
-
-render_pie(result)
