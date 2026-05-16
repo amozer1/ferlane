@@ -11,57 +11,53 @@ def build_deliverables(cl31, cl32):
     cl32 = cl32.copy()
 
     # =========================
-    # CL31 (ONLY BL Project Finish)
+    # KEEP RAW DATES (NO FORMATTING YET)
     # =========================
     cl31["Deliverable"] = cl31["Activity Name"]
-    cl31["CL31 Finish"] = _to_date(cl31["BL Project Finish"])
-    cl31 = cl31[["Deliverable", "CL31 Finish"]]
+    cl31["CL31 Finish_raw"] = _to_date(cl31["BL Project Finish"])
 
-    # =========================
-    # CL32 (ONLY Finish)
-    # =========================
     cl32["Deliverable"] = cl32["Activity Name"]
-    cl32["CL32 Finish"] = _to_date(cl32["Finish"])
-    cl32 = cl32[["Deliverable", "CL32 Finish"]]
+    cl32["CL32 Finish_raw"] = _to_date(cl32["Finish"])
 
     # =========================
     # MERGE
     # =========================
-    df = cl31.merge(cl32, on="Deliverable", how="outer")
+    df = cl31[["Deliverable", "CL31 Finish_raw"]].merge(
+        cl32[["Deliverable", "CL32 Finish_raw"]],
+        on="Deliverable",
+        how="outer"
+    )
 
     # =========================
-    # PRESERVE CL31 ORDER + APPEND NEW
+    # PRESERVE ORDER
     # =========================
-    cl31_order = cl31["Deliverable"].tolist()
+    order = cl31["Deliverable"].tolist()
 
-    def order_func(x):
-        try:
-            return cl31_order.index(x)
-        except:
-            return 10**9
+    df["__order"] = df["Deliverable"].apply(
+        lambda x: order.index(x) if x in order else 10**9
+    )
 
-    df["__order"] = df["Deliverable"].apply(order_func)
     df = df.sort_values("__order").drop(columns="__order")
 
     # =========================
-    # DELTA (FIXED)
+    # DELTA (CLEAN + SAFE)
     # =========================
-    def delta(row):
-        if pd.isna(row["CL31 Finish"]) or pd.isna(row["CL32 Finish"]):
-            return None
-        return int((row["CL32 Finish"] - row["CL31 Finish"]).days)
+    def calc_delta(row):
+        if pd.isna(row["CL31 Finish_raw"]) or pd.isna(row["CL32 Finish_raw"]):
+            return pd.NA
+        return (row["CL32 Finish_raw"] - row["CL31 Finish_raw"]).days
 
-    df["Delta (Days)"] = df.apply(delta, axis=1)
+    df["Delta (Days)"] = df.apply(calc_delta, axis=1).astype("Int64")
 
     # =========================
     # CHANGE TYPE
     # =========================
     def change(row):
-        if pd.isna(row["CL31 Finish"]) and pd.notna(row["CL32 Finish"]):
+        if pd.isna(row["CL31 Finish_raw"]) and pd.notna(row["CL32 Finish_raw"]):
             return "NEW"
-        if pd.notna(row["CL31 Finish"]) and pd.isna(row["CL32 Finish"]):
+        if pd.notna(row["CL31 Finish_raw"]) and pd.isna(row["CL32 Finish_raw"]):
             return "REMOVED"
-        if row["Delta (Days)"] is None:
+        if pd.isna(row["Delta (Days)"]):
             return "UNCHANGED"
         if row["Delta (Days)"] > 0:
             return "DELAYED"
@@ -72,31 +68,31 @@ def build_deliverables(cl31, cl32):
     df["Change Type"] = df.apply(change, axis=1)
 
     # =========================
-    # STATUS COMMENT
+    # COMMENT
     # =========================
-    def comment(row):
-        if row["Change Type"] == "NEW":
+    def comment(x):
+        if x == "NEW":
             return "Added scope in CL32"
-        if row["Change Type"] == "REMOVED":
+        if x == "REMOVED":
             return "Removed from CL32"
-        if row["Change Type"] == "DELAYED":
+        if x == "DELAYED":
             return "Shifted later, coordination required"
-        if row["Change Type"] == "EARLY":
+        if x == "EARLY":
             return "Pulled forward"
         return "Stable"
 
-    df["Status / Comment"] = df.apply(comment, axis=1)
+    df["Status / Comment"] = df["Change Type"].apply(comment)
 
     # =========================
-    # FORMAT DATES (MOVED TO END - IMPORTANT)
+    # FINAL FORMAT (ONLY NOW)
     # =========================
     def fmt(x):
-        if pd.isna(x):
-            return "-"
-        return pd.to_datetime(x).strftime("%d-%b-%y")
+        return "-" if pd.isna(x) else x.strftime("%d-%b-%y")
 
-    df["CL31 Finish"] = df["CL31 Finish"].apply(fmt)
-    df["CL32 Finish"] = df["CL32 Finish"].apply(fmt)
+    df["CL31 Finish"] = df["CL31 Finish_raw"].apply(fmt)
+    df["CL32 Finish"] = df["CL32 Finish_raw"].apply(fmt)
+
+    df = df.drop(columns=["CL31 Finish_raw", "CL32 Finish_raw"])
 
     # =========================
     # FINAL OUTPUT
