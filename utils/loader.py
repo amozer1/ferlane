@@ -2,7 +2,6 @@ import pandas as pd
 
 
 def clean_dates(df):
-    """Remove A / * from dates and standardise."""
     for col in df.columns:
         if "Start" in col or "Finish" in col:
             df[col] = (
@@ -14,56 +13,49 @@ def clean_dates(df):
     return df
 
 
-def prepare_dataframe(file):
-    df = pd.read_excel(file)
+def prepare_dataframe(df):
+    """
+    FIX: Now expects a DataFrame, NOT a file path
+    """
+    if isinstance(df, str):
+        df = pd.read_excel(df)
+    elif hasattr(df, "read"):
+        # uploaded file from Streamlit
+        df = pd.read_excel(df)
+
     df = clean_dates(df)
 
-    # Keep only deliverable-level rows (avoid group headers)
     df = df[df["Activity Name"].notna()].copy()
-
-    # Normalize key
     df["Deliverable"] = df["Activity Name"].astype(str).str.strip()
 
     return df
 
 
-def build_lookup(df, finish_col="Finish"):
-    """
-    IMPORTANT FIX:
-    Handle duplicate deliverables safely by taking MAX date (latest finish)
-    """
-    df[finish_col] = pd.to_datetime(df[finish_col], errors="coerce")
+def build_lookup(df, col="Finish"):
+    df[col] = pd.to_datetime(df[col], errors="coerce")
 
-    lookup = (
-        df.groupby("Deliverable")[finish_col]
-        .max()
-    )
-
-    return lookup
+    return df.groupby("Deliverable")[col].max()
 
 
 def prepare_comparison_df(df31, df32):
+
     df31 = prepare_dataframe(df31)
     df32 = prepare_dataframe(df32)
 
-    # unified deliverables
     all_deliverables = sorted(
         set(df31["Deliverable"]).union(set(df32["Deliverable"]))
     )
 
     merged = pd.DataFrame({"Deliverable": all_deliverables})
 
-    # SAFE LOOKUPS (no map error)
-    df31_lookup = build_lookup(df31)
-    df32_lookup = build_lookup(df32)
+    df31_map = build_lookup(df31)
+    df32_map = build_lookup(df32)
 
-    merged["CL31 Finish"] = merged["Deliverable"].map(df31_lookup)
-    merged["CL32 Finish"] = merged["Deliverable"].map(df32_lookup)
+    merged["CL31 Finish"] = merged["Deliverable"].map(df31_map)
+    merged["CL32 Finish"] = merged["Deliverable"].map(df32_map)
 
-    # Delta
     merged["Delta (Days)"] = (
-        (merged["CL32 Finish"] - merged["CL31 Finish"])
-        .dt.days
+        (merged["CL32 Finish"] - merged["CL31 Finish"]).dt.days
     )
 
     return merged
