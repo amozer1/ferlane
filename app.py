@@ -1,81 +1,48 @@
-# app.py
 import streamlit as st
-from loader import load_programmes
-from deliverables import compare
+from loader import load_programme
+from deliverables import extract_deliverables, compare_cl31_cl32
 
-# -----------------------------
-# PAGE CONFIG
-# -----------------------------
-st.set_page_config(page_title="CL Deliverables Tracker", layout="wide")
+st.set_page_config(page_title="Programme Deliverables Tracker", layout="wide")
 
-st.title("📊 CL31-Feb vs CL32-May Deliverables Tracker")
+st.title("📊 CL31 vs CL32 Deliverables Comparison")
 
+# AUTO LOAD FILES (no manual clicks required)
+CL31_FILE = "data/CL31.xlsx"
+CL32_FILE = "data/CL32.xlsx"
 
-# -----------------------------
-# LOAD DATA
-# -----------------------------
-@st.cache_data
-def get_data():
-    cl31, cl32 = load_programmes()
-    return compare(cl31, cl32)
+df31_raw = load_programme(CL31_FILE)
+df32_raw = load_programme(CL32_FILE)
 
+# Extract deliverables dynamically
+df31 = extract_deliverables(df31_raw)
+df32 = extract_deliverables(df32_raw)
 
-df = get_data()
+# Compare
+result = compare_cl31_cl32(df31, df32)
 
+# Status logic (visual layer)
+def status(row):
+    if row["Change Type"] == "DELAYED":
+        return "🔴 Delayed"
+    if row["Change Type"] == "AHEAD":
+        return "🟢 Ahead"
+    if row["Change Type"] == "NEW":
+        return "🟡 New"
+    if row["Change Type"] == "REMOVED":
+        return "⚫ Removed"
+    return "⚪ Unchanged"
 
-# -----------------------------
-# METRICS
-# -----------------------------
+result["Status / Comment"] = result.apply(status, axis=1)
+
+# Display
+st.dataframe(result, use_container_width=True)
+
+# Summary
+st.subheader("Summary")
+
 col1, col2, col3, col4 = st.columns(4)
 
-col1.metric("Total Deliverables", len(df))
-col2.metric("Delayed", len(df[df["change_type"] == "DELAYED"]))
-col3.metric("New", len(df[df["change_type"] == "NEW"]))
-col4.metric("Removed", len(df[df["change_type"] == "REMOVED"]))
-
-
-# -----------------------------
-# FILTERS
-# -----------------------------
-st.sidebar.header("Filters")
-
-types = df["change_type"].dropna().unique()
-
-selected = st.sidebar.multiselect(
-    "Change Type Filter",
-    types,
-    default=types
-)
-
-filtered = df[df["change_type"].isin(selected)]
-
-
-# -----------------------------
-# TABLE OUTPUT
-# -----------------------------
-st.subheader("Deliverable Comparison Table")
-
-st.dataframe(
-    filtered[[
-        "deliverable",
-        "cl31_finish",
-        "cl32_finish",
-        "delta_days",
-        "change_type",
-        "status_comment"
-    ]],
-    use_container_width=True
-)
-
-
-# -----------------------------
-# DOWNLOAD
-# -----------------------------
-csv = filtered.to_csv(index=False).encode("utf-8")
-
-st.download_button(
-    "⬇️ Download CSV",
-    csv,
-    "deliverables_cl31_cl32_comparison.csv",
-    "text/csv"
-)
+col1.metric("Total Deliverables", len(result))
+col2.metric("Delayed", (result["Change Type"] == "DELAYED").sum())
+col3.metric("New", (result["Change Type"] == "NEW").sum())
+col4.metric("Removed", (result["Change Type"] == "REMOVED").sum())

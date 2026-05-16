@@ -1,133 +1,72 @@
-# deliverables.py
 import pandas as pd
-import re
 
 
-# -----------------------------
-# DETECT DELIVERABLES
-# -----------------------------
-def is_deliverable(text: str) -> bool:
-    if not isinstance(text, str):
-        return False
-
-    t = text.lower()
-
-    include_keywords = [
-        "submission", "design", "report", "drawing", "plan",
-        "schedule", "assessment", "specification", "model",
-        "analysis", "register", "philosophy", "calculation",
-        "package", "ga", "p&id", "p&ids", "document"
-    ]
-
-    exclude_keywords = [
-        "review", "meeting", "mobilisation", "raise",
-        "get", "workshop", "install", "build", "procurement",
-        "lead", "governance", "check"
-    ]
-
-    if any(x in t for x in exclude_keywords):
-        return False
-
-    if any(x in t for x in include_keywords):
-        return True
-
-    return False
-
-
-# -----------------------------
-# NORMALISE NAME
-# -----------------------------
-def normalise(name: str) -> str:
-    if not isinstance(name, str):
-        return ""
-
-    name = name.upper().strip()
-
-    # remove codes like AMP8-FPS-XXXX
-    name = re.sub(r"AMP8-[A-Z0-9\-]+", "", name)
-
-    # remove multiple spaces
-    name = re.sub(r"\s+", " ", name)
-
-    return name.strip()
-
-
-# -----------------------------
-# EXTRACT DELIVERABLES
-# -----------------------------
 def extract_deliverables(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Treats ALL leaf-level activities as deliverables dynamically.
+    No hardcoding of names.
+    """
+
     df = df.copy()
 
-    df["is_deliverable"] = df["name"].apply(is_deliverable)
-    df = df[df["is_deliverable"] == True]
+    # Ensure required columns exist
+    required = ["id", "name", "finish", "bl_finish"]
+    for r in required:
+        if r not in df.columns:
+            raise ValueError(f"Missing column: {r}")
 
-    df["deliverable"] = df["name"].apply(normalise)
+    # Identify deliverables (leaf tasks)
+    df["is_deliverable"] = (
+        df["id"].astype(str).str.contains(r"^[A-Z]{2,}-", na=False)
+    ) & (df["name"].notna())
 
-    return df[["deliverable", "finish"]]
+    deliverables = df[df["is_deliverable"]].copy()
+
+    # Remove empty rows
+    deliverables = deliverables[deliverables["name"].str.len() > 0]
+
+    return deliverables
 
 
-# -----------------------------
-# COMPARE SNAPSHOTS
-# -----------------------------
-def compare(cl31: pd.DataFrame, cl32: pd.DataFrame) -> pd.DataFrame:
+def compare_cl31_cl32(df31: pd.DataFrame, df32: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compare CL31 vs CL32 deliverables dynamically.
+    """
 
-    cl31 = extract_deliverables(cl31)
-    cl32 = extract_deliverables(cl32)
+    df31 = df31.set_index("id")
+    df32 = df32.set_index("id")
 
-    cl31 = cl31.rename(columns={"finish": "cl31_finish"})
-    cl32 = cl32.rename(columns={"finish": "cl32_finish"})
+    all_ids = sorted(set(df31.index) | set(df32.index))
 
-    merged = pd.merge(cl31, cl32, on="deliverable", how="outer")
+    rows = []
 
-    # -------------------------
-    # CHANGE TYPE LOGIC
-    # -------------------------
-    def classify(row):
-        a = row.get("cl31_finish")
-        b = row.get("cl32_finish")
+    for _id in all_ids:
+        a = df31.loc[_id] if _id in df31.index else None
+        b = df32.loc[_id] if _id in df32.index else None
 
-        if pd.notna(a) and pd.notna(b):
-            if a == b:
-                return "UNCHANGED"
-            elif b > a:
-                return "DELAYED"
-            else:
-                return "ACCELERATED"
+        cl31_finish = a["finish"] if a is not None else None
+        cl32_finish = b["finish"] if b is not None else None
 
-        if pd.notna(a) and pd.isna(b):
-            return "REMOVED"
+        # Delta logic
+        if pd.notna(cl31_finish) and pd.notna(cl32_finish):
+            delta = (cl32_finish - cl31_finish).days
+            change = "DELAYED" if delta > 0 else "AHEAD" if delta < 0 else "UNCHANGED"
+        elif pd.isna(cl31_finish) and pd.notna(cl32_finish):
+            delta = "NEW"
+            change = "NEW"
+        elif pd.notna(cl31_finish) and pd.isna(cl32_finish):
+            delta = "REMOVED"
+            change = "REMOVED"
+        else:
+            delta = None
+            change = None
 
-        if pd.isna(a) and pd.notna(b):
-            return "NEW"
+        rows.append({
+            "Deliverable": (_id if _id else "UNKNOWN"),
+            "CL31 Finish": cl31_finish,
+            "CL32 Finish": cl32_finish,
+            "Delta (Days)": delta,
+            "Change Type": change,
+        })
 
-        return "UNKNOWN"
-
-    merged["change_type"] = merged.apply(classify, axis=1)
-
-    # -------------------------
-    # DELTA DAYS
-    # -------------------------
-    merged["delta_days"] = (
-        pd.to_datetime(merged["cl32_finish"], errors="coerce")
-        - pd.to_datetime(merged["cl31_finish"], errors="coerce")
-    ).dt.days
-
-    # -------------------------
-    # COMMENTS
-    # -------------------------
-    def comment(row):
-        if row["change_type"] == "DELAYED":
-            return "Shifted later vs CL31 baseline"
-        if row["change_type"] == "NEW":
-            return "Added scope in CL32"
-        if row["change_type"] == "REMOVED":
-            return "Dropped from CL32"
-        if row["change_type"] == "UNCHANGED":
-            return "Stable"
-        if row["change_type"] == "ACCELERATED":
-            return "Pulled earlier vs baseline"
-        return ""
-
-    merged["status_comment"] = merged.apply(comment, axis=1)
-
-    return merged
+    return pd.DataFrame(rows)
