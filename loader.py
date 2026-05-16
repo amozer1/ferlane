@@ -1,78 +1,43 @@
 import pandas as pd
-import numpy as np
-
-# =========================
-# COLUMN NORMALISATION MAP
-# =========================
-COLUMN_MAP = {
-    "Activity Name": "Activity Name",
-
-    "Start": "Start",
-    "Finish": "Finish",
-
-    # CL31 format
-    "BL Project Start": "BL Start",
-    "BL Project Finish": "BL Finish",
-
-    # CL32 format
-    "BL1 Start": "BL Start",
-    "BL1 Finish": "BL Finish",
-
-    # fallback variants
-    "Baseline Start": "BL Start",
-    "Baseline Finish": "BL Finish",
-}
 
 
-DATE_COLS = ["Start", "Finish", "BL Start", "BL Finish"]
+def _clean_date(series: pd.Series) -> pd.Series:
+    """
+    Robust date parser:
+    - handles blanks
+    - handles 'A' suffix
+    - handles mixed formats
+    """
+    series = series.astype(str).str.replace("A", "", regex=False).str.strip()
+    series = series.replace(["", "nan", "NaT", "None"], pd.NA)
+    return pd.to_datetime(series, errors="coerce", dayfirst=True)
 
 
-# -------------------------
-# CLEAN HEADERS
-# -------------------------
-def _clean_columns(df):
+def load_cl31(path="data/CL31-February.xlsx"):
+    df = pd.read_excel(path)
     df.columns = df.columns.str.strip()
-    df = df.rename(columns=lambda x: COLUMN_MAP.get(x, x))
+
+    df = df.rename(columns={
+        "Activity Name": "Activity"
+    })
+
+    df["Finish"] = _clean_date(df["Finish"])
+    df["Start"] = _clean_date(df["Start"])
+    df["BL Project Finish"] = _clean_date(df["BL Project Finish"])
+
     return df
 
 
-# -------------------------
-# CLEAN TEXT
-# -------------------------
-def _clean_text(val):
-    if pd.isna(val):
-        return np.nan
-    return str(val).replace(" A", "").strip()
-
-
-# -------------------------
-# DATE PARSER (CRITICAL FIX)
-# -------------------------
-def _parse_date(val):
-    if pd.isna(val) or val == "":
-        return np.nan
-
-    val = str(val).replace(" A", "").strip()
-
-    return pd.to_datetime(val, errors="coerce", dayfirst=True)
-
-
-# -------------------------
-# MAIN LOADER
-# -------------------------
-def load_schedule(path: str) -> pd.DataFrame:
+def load_cl32(path="data/CL32-May.xlsx"):
     df = pd.read_excel(path)
+    df.columns = df.columns.str.strip()
 
-    # standardise headers
-    df = _clean_columns(df)
+    df = df.rename(columns={
+        "Activity Name": "Activity"
+    })
 
-    # clean activity names
-    if "Activity Name" in df.columns:
-        df["Activity Name"] = df["Activity Name"].apply(_clean_text)
-
-    # parse all known date fields
-    for col in DATE_COLS:
-        if col in df.columns:
-            df[col] = df[col].apply(_parse_date)
+    df["Finish"] = _clean_date(df["Finish"])
+    df["Start"] = _clean_date(df["Start"])
+    df["BL1 Finish"] = _clean_date(df["BL1 Finish"])
 
     return df
