@@ -1,6 +1,6 @@
 import streamlit as st
-from loader import load_cl31, load_cl32
-from deliverables import build_design_control_table
+from utils.loader import load_cl31, load_cl32
+from components.deliverables import build_design_control_table
 
 st.set_page_config(layout="wide")
 
@@ -9,16 +9,16 @@ st.title("Design Management Control Dashboard (CL31 vs CL32)")
 # -------------------------
 # LOAD DATA
 # -------------------------
-cl31 = load_cl31("CL31.xlsx")
-cl32 = load_cl32("CL32.xlsx")
+cl31 = load_cl31("data/CL31.xlsx")
+cl32 = load_cl32("data/CL32.xlsx")
 
 # -------------------------
-# BUILD TABLE
+# BUILD CONTROL TABLE
 # -------------------------
 df = build_design_control_table(cl31, cl32)
 
 # -------------------------
-# FILTERS (OPTIONAL BUT POWERFUL)
+# FILTERS
 # -------------------------
 col1, col2 = st.columns(2)
 
@@ -32,8 +32,8 @@ with col1:
 with col2:
     discipline_filter = st.multiselect(
         "Filter Discipline",
-        df["Discipline"].dropna().unique(),
-        default=df["Discipline"].dropna().unique()
+        df["Discipline"].unique(),
+        default=df["Discipline"].unique()
     )
 
 filtered_df = df[
@@ -42,17 +42,22 @@ filtered_df = df[
 ]
 
 # -------------------------
-# COLOURING
+# COLOUR STYLING
 # -------------------------
-def style(row):
+def style_row(row):
     if "🔴" in row["Status"]:
         return ["background-color:#ffcccc"] * len(row)
-    if "🟠" in row["Status"]:
+    elif "🟠" in row["Status"]:
         return ["background-color:#ffe5cc"] * len(row)
-    if "🟡" in row["Status"]:
+    elif "🟡" in row["Status"]:
         return ["background-color:#fff7cc"] * len(row)
-    if "🟢" in row["Status"]:
+    elif "🟢" in row["Status"]:
         return ["background-color:#e6ffe6"] * len(row)
     return [""] * len(row)
 
-st.dataframe(filtered_df.style.apply(style, axis=1), use_container_width=True)
+st.subheader("Programme Control Table")
+st.dataframe(
+    filtered_df.style.apply(style_row, axis=1),
+    use_container_width=True,
+    height=700
+)

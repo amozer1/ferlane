@@ -1,18 +1,23 @@
 import pandas as pd
 
-def load_cl31(path="CL31.xlsx"):
-    df = pd.read_excel(path)
-    df = df.rename(columns={
-        "Finish": "CL31 Finish",
-        "Total Float": "CL31 Float"
-    })
+def load_cl31(file_path: str) -> pd.DataFrame:
+    df = pd.read_excel(file_path)
+
+    df.columns = df.columns.str.strip()
+
+    # standardise key fields
+    if "Activity ID" not in df.columns:
+        raise ValueError("CL31 missing 'Activity ID' column")
+
     return df
 
 
-def load_cl32(path="CL32.xlsx"):
-    df = pd.read_excel(path)
-    df = df.rename(columns={
-        "Finish": "CL32 Finish",
-        "Total Float": "CL32 Float"
-    })
+def load_cl32(file_path: str) -> pd.DataFrame:
+    df = pd.read_excel(file_path)
+
+    df.columns = df.columns.str.strip()
+
+    if "Activity ID" not in df.columns:
+        raise ValueError("CL32 missing 'Activity ID' column")
+
     return df
