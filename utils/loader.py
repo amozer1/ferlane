@@ -5,26 +5,51 @@ import re
 DATE_FMT = "%d-%b-%Y"
 
 
+# -------------------------
+# CLEAN RAW DATE STRING
+# -------------------------
 def clean_date(value):
     if pd.isna(value):
         return np.nan
 
     value = str(value).strip()
+
+    # remove A, *, extra spaces
     value = re.sub(r"[A*]", "", value).strip()
 
-    if value == "":
+    if value == "" or value.lower() == "nan":
         return np.nan
 
-    return pd.to_datetime(value, dayfirst=True, errors="coerce")
+    return value  # KEEP AS STRING FIRST (IMPORTANT FIX)
 
 
+# -------------------------
+# SAFE PARSE AFTER CLEANING
+# -------------------------
+def parse_date(value):
+    if pd.isna(value):
+        return np.nan
+
+    try:
+        return pd.to_datetime(value, dayfirst=True, errors="coerce")
+    except:
+        return np.nan
+
+
+# -------------------------
+# FORMAT OUTPUT
+# -------------------------
 def format_date(value):
     if pd.isna(value):
         return None
     return value.strftime(DATE_FMT)
 
 
+# -------------------------
+# STANDARDISE COLUMNS
+# -------------------------
 def standardise(df):
+
     cols = {c.lower().strip(): c for c in df.columns}
 
     def pick(*keys):
@@ -42,26 +67,39 @@ def standardise(df):
     })
 
 
+# -------------------------
+# FIX DATE FALLBACK (SAFE)
+# -------------------------
 def fill_dates(df):
-    # fallback logic (NO blanks allowed)
-    df["Start"] = df["Start"].combine_first(df["BL Start"])
-    df["BL Start"] = df["BL Start"].combine_first(df["Start"])
 
-    df["Finish"] = df["Finish"].combine_first(df["BL Finish"])
-    df["BL Finish"] = df["BL Finish"].combine_first(df["Finish"])
+    # STEP 1: CLEAN ALL RAW VALUES FIRST
+    for col in ["Start", "Finish", "BL Start", "BL Finish"]:
+        df[col] = df[col].apply(clean_date)
 
-    for c in ["Start", "Finish", "BL Start", "BL Finish"]:
-        df[c] = df[c].apply(clean_date)
+    # STEP 2: SAFE FALLBACK (STRING LEVEL ONLY)
+    df["Start"] = df["Start"].fillna(df["BL Start"])
+    df["BL Start"] = df["BL Start"].fillna(df["Start"])
 
-    # HARD RULE: remove rows still missing dates
-    df = df.dropna(subset=["Start", "Finish", "BL Finish"])
+    df["Finish"] = df["Finish"].fillna(df["BL Finish"])
+    df["BL Finish"] = df["BL Finish"].fillna(df["Finish"])
 
-    for c in ["Start", "Finish", "BL Start", "BL Finish"]:
-        df[c] = df[c].apply(format_date)
+    # STEP 3: NOW PARSE SAFELY
+    for col in ["Start", "Finish", "BL Start", "BL Finish"]:
+        df[col] = df[col].apply(parse_date)
+
+    # STEP 4: DROP ONLY TRUE INVALID ROWS
+    df = df.dropna(subset=["Start", "Finish"])
+
+    # STEP 5: FORMAT FINAL OUTPUT
+    for col in ["Start", "Finish", "BL Start", "BL Finish"]:
+        df[col] = df[col].apply(format_date)
 
     return df
 
 
+# -------------------------
+# MAIN LOADER
+# -------------------------
 def load_programme(path):
     df = pd.read_excel(path)
     df = standardise(df)
