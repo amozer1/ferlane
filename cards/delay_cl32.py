@@ -1,3 +1,43 @@
+import streamlit as st
+import pandas as pd
+
+
+def _prepare(df):
+    df = df.copy()
+
+    df.columns = df.columns.astype(str).str.strip()
+
+    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
+    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+
+    df["Activity % Complete"] = (
+        df["Activity % Complete"]
+        .astype(str)
+        .str.replace("%", "", regex=False)
+    )
+
+    df["Activity % Complete"] = pd.to_numeric(
+        df["Activity % Complete"],
+        errors="coerce"
+    ).fillna(0)
+
+    return df
+
+
+def _get_delayed(df):
+    df = _prepare(df)
+    today = pd.Timestamp.today()
+
+    delayed = df[
+        (df["Finish"] < today) &
+        (df["Activity % Complete"] < 100)
+    ].copy()
+
+    delayed["Delay (Days)"] = (today - delayed["Finish"]).dt.days
+
+    return delayed.sort_values("Delay (Days)", ascending=False)
+
+
 def render_delayed_table(df):
 
     delayed = _get_delayed(df)
@@ -15,9 +55,35 @@ def render_delayed_table(df):
         "Comments"
     ]].copy()
 
+    # =========================
+    # DISPLAY FORMATTING ONLY
+    # =========================
     display_df["Start"] = display_df["Start"].dt.strftime("%d-%b-%Y")
     display_df["Finish"] = display_df["Finish"].dt.strftime("%d-%b-%Y")
 
+
+    # =========================
+    # COLOUR FUNCTION (DELAY ONLY)
+    # =========================
+    def colour_delay(val):
+        try:
+            v = float(val)
+
+            if v >= 50:
+                return "background-color:#5a0000; color:white; font-weight:bold"
+            elif v >= 30:
+                return "background-color:#8b1e1e; color:white; font-weight:bold"
+            elif v >= 15:
+                return "background-color:#a66a00; color:white; font-weight:bold"
+            else:
+                return "background-color:#4a4a00; color:white; font-weight:bold"
+        except:
+            return ""
+
+
+    # =========================
+    # APPLY STYLING (SAFE FOR NEW PANDAS)
+    # =========================
     styled = display_df.style.set_table_styles([
         {
             "selector": "th",
@@ -53,22 +119,13 @@ def render_delayed_table(df):
         }
     ])
 
-    def colour_delay(val):
-        try:
-            v = float(val)
-
-            if v >= 50:
-                return "background-color:#5a0000; color:white; font-weight:bold"
-            elif v >= 30:
-                return "background-color:#8b1e1e; color:white; font-weight:bold"
-            elif v >= 15:
-                return "background-color:#a66a00; color:white; font-weight:bold"
-            else:
-                return "background-color:#4a4a00; color:white; font-weight:bold"
-        except:
-            return ""
-
-    # ✅ FIXED LINE (THIS IS THE ONLY CHANGE)
+    # =========================
+    # APPLY COLOUR ONLY TO "Delay (Days)"
+    # (FIXED: uses map, not applymap)
+    # =========================
     styled = styled.map(colour_delay, subset=["Delay (Days)"])
 
+    # =========================
+    # RENDER THIS TABLE ONLY
+    # =========================
     st.write(styled)
