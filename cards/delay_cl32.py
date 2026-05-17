@@ -3,9 +3,6 @@ import numpy as np
 import streamlit as st
 
 
-# =========================
-# DATA PREP
-# =========================
 def _prepare(df):
     df = df.copy()
 
@@ -28,9 +25,6 @@ def _prepare(df):
     return df
 
 
-# =========================
-# DELAY LOGIC
-# =========================
 def _get_delayed(df):
     df = _prepare(df)
     today = pd.Timestamp.today()
@@ -45,9 +39,6 @@ def _get_delayed(df):
     return delayed.sort_values("Delay (Days)", ascending=False)
 
 
-# =========================
-# MAIN RENDER FUNCTION (MUST BE TOP LEVEL)
-# =========================
 def render_delayed_table(df):
 
     delayed = _get_delayed(df)
@@ -65,15 +56,15 @@ def render_delayed_table(df):
         "Comments"
     ]].copy()
 
-    # Format dates ONLY for display
+    # Format dates (display only)
     display_df["Start"] = display_df["Start"].dt.strftime("%d-%b-%Y")
     display_df["Finish"] = display_df["Finish"].dt.strftime("%d-%b-%Y")
 
     # =========================
-    # VISUAL STYLING ONLY
+    # LOCAL STYLING ONLY (NO GLOBAL IMPACT)
     # =========================
     styled = display_df.style.set_table_styles([
-        # HEADER
+        # HEADER ONLY FOR THIS TABLE
         {
             "selector": "th",
             "props": [
@@ -89,7 +80,7 @@ def render_delayed_table(df):
             ]
         },
 
-        # CELLS
+        # CELLS ONLY FOR THIS TABLE
         {
             "selector": "td",
             "props": [
@@ -97,12 +88,11 @@ def render_delayed_table(df):
                 ("background-color", "#1c2233"),
                 ("color", "#f1f1f1"),
                 ("border-bottom", "1px solid #2a3347"),
-                ("border-right", "1px solid #2a3347"),
-                ("vertical-align", "top")
+                ("border-right", "1px solid #2a3347")
             ]
         },
 
-        # TABLE
+        # TABLE WRAPPER ONLY
         {
             "selector": "table",
             "props": [
@@ -113,9 +103,7 @@ def render_delayed_table(df):
         }
     ])
 
-    # =========================
-    # DELAY COLOURING (OPTIONAL VISUAL ONLY)
-    # =========================
+    # ONLY THIS COLUMN gets colour
     def colour_delay(val):
         try:
             v = float(val)
@@ -133,7 +121,5 @@ def render_delayed_table(df):
 
     styled = styled.applymap(colour_delay, subset=["Delay (Days)"])
 
-    # =========================
-    # RENDER (SAFE)
-    # =========================
+    # IMPORTANT: isolated rendering (does NOT affect other tables)
     st.write(styled)
