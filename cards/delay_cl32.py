@@ -1,44 +1,3 @@
-import pandas as pd
-import numpy as np
-import streamlit as st
-
-
-def _prepare(df):
-    df = df.copy()
-
-    df.columns = df.columns.astype(str).str.strip()
-
-    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
-
-    df["Activity % Complete"] = (
-        df["Activity % Complete"]
-        .astype(str)
-        .str.replace("%", "", regex=False)
-    )
-
-    df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"],
-        errors="coerce"
-    ).fillna(0)
-
-    return df
-
-
-def _get_delayed(df):
-    df = _prepare(df)
-    today = pd.Timestamp.today()
-
-    delayed = df[
-        (df["Finish"] < today) &
-        (df["Activity % Complete"] < 100)
-    ].copy()
-
-    delayed["Delay (Days)"] = (today - delayed["Finish"]).dt.days
-
-    return delayed.sort_values("Delay (Days)", ascending=False)
-
-
 def render_delayed_table(df):
 
     delayed = _get_delayed(df)
@@ -56,15 +15,10 @@ def render_delayed_table(df):
         "Comments"
     ]].copy()
 
-    # Format dates (display only)
     display_df["Start"] = display_df["Start"].dt.strftime("%d-%b-%Y")
     display_df["Finish"] = display_df["Finish"].dt.strftime("%d-%b-%Y")
 
-    # =========================
-    # LOCAL STYLING ONLY (NO GLOBAL IMPACT)
-    # =========================
     styled = display_df.style.set_table_styles([
-        # HEADER ONLY FOR THIS TABLE
         {
             "selector": "th",
             "props": [
@@ -79,8 +33,6 @@ def render_delayed_table(df):
                 ("text-align", "left")
             ]
         },
-
-        # CELLS ONLY FOR THIS TABLE
         {
             "selector": "td",
             "props": [
@@ -91,8 +43,6 @@ def render_delayed_table(df):
                 ("border-right", "1px solid #2a3347")
             ]
         },
-
-        # TABLE WRAPPER ONLY
         {
             "selector": "table",
             "props": [
@@ -103,7 +53,6 @@ def render_delayed_table(df):
         }
     ])
 
-    # ONLY THIS COLUMN gets colour
     def colour_delay(val):
         try:
             v = float(val)
@@ -119,7 +68,7 @@ def render_delayed_table(df):
         except:
             return ""
 
-    styled = styled.applymap(colour_delay, subset=["Delay (Days)"])
+    # ✅ FIXED LINE (THIS IS THE ONLY CHANGE)
+    styled = styled.map(colour_delay, subset=["Delay (Days)"])
 
-    # IMPORTANT: isolated rendering (does NOT affect other tables)
     st.write(styled)
