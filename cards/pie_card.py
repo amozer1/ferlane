@@ -1,68 +1,113 @@
 import streamlit as st
 import plotly.graph_objects as go
+import pandas as pd
 
 
-def render_pie(result):
-
-    # =========================
-    # DATA
-    # =========================
-    on_track = (result["Change Type"] == "UNCHANGED").sum()
-    delayed = (result["Change Type"] == "DELAYED").sum()
-    accelerated = (result["Change Type"] == "EARLY").sum()
-
-    labels = ["On Track", "Delayed", "Accelerated"]
-    values = [on_track, delayed, accelerated]
-    colors = ["gold", "red", "green"]
+def render_pie(df):
 
     # =========================
-    # CARD WRAPPER (STRICT CONTAINER)
+    # TITLE
     # =========================
-    with st.container():
+    st.markdown("### Schedule Summary (CL32)")
 
-        col1, col2 = st.columns([1, 1])
+    df = df.copy()
 
-        # =========================
-        # PIE (LEFT)
-        # =========================
-        with col1:
+    # =========================
+    # CLEAN DATA
+    # =========================
+    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
+    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-            fig = go.Figure(
-                data=[
-                    go.Pie(
-                        labels=labels,
-                        values=values,
-                        marker=dict(colors=colors),
-                        textinfo="value+percent",
-                        sort=False,
-                        hole=0  # solid pie (NOT donut)
-                    )
-                ]
-            )
+    df["Activity % Complete"] = (
+        df["Activity % Complete"]
+        .astype(str)
+        .str.replace("%", "", regex=False)
+    )
+    df["Activity % Complete"] = pd.to_numeric(df["Activity % Complete"], errors="coerce")
 
-            fig.update_layout(
-                height=260,
-                margin=dict(l=0, r=0, t=0, b=0),  # 🔥 removes overflow
-                paper_bgcolor="white",
-                plot_bgcolor="white",
-                showlegend=False
-            )
+    today = pd.to_datetime("today")
 
-            st.plotly_chart(
-                fig,
-                use_container_width=True,
-                config={"displayModeBar": False}
-            )
+    # =========================
+    # TIME PROGRESS
+    # =========================
+    duration = (df["Finish"] - df["Start"]).dt.days
+    elapsed = (today - df["Start"]).dt.days
 
-        # =========================
-        # LEGEND (RIGHT)
-        # =========================
-        with col2:
+    time_progress = (elapsed / duration) * 100
 
-            st.markdown("### Legend")
+    # =========================
+    # CLASSIFICATION LOGIC
+    # =========================
+    df["Status"] = "On Track"
 
-            st.markdown(f"""
-            🟡 **On Track:** {on_track}  
-            🔴 **Delayed:** {delayed}  
-            🟢 **Accelerated:** {accelerated}
-            """)
+    df.loc[df["Activity % Complete"] < (time_progress - 5), "Status"] = "Delayed"
+    df.loc[df["Activity % Complete"] > (time_progress + 5), "Status"] = "Accelerated"
+
+    # =========================
+    # COUNTS
+    # =========================
+    counts = df["Status"].value_counts()
+
+    on_track = counts.get("On Track", 0)
+    delayed = counts.get("Delayed", 0)
+    accelerated = counts.get("Accelerated", 0)
+
+    # =========================
+    # PIE DATA (NO ZERO DISPLAY)
+    # =========================
+    labels = []
+    values = []
+    colors = []
+
+    if on_track > 0:
+        labels.append("On Track")
+        values.append(on_track)
+        colors.append("gold")
+
+    if delayed > 0:
+        labels.append("Delayed")
+        values.append(delayed)
+        colors.append("red")
+
+    if accelerated > 0:
+        labels.append("Accelerated")
+        values.append(accelerated)
+        colors.append("green")
+
+    # =========================
+    # PIE CHART (LOCKED FIT)
+    # =========================
+    col1, col2 = st.columns([1.2, 1])
+
+    with col1:
+
+        fig = go.Figure(
+            data=[
+                go.Pie(
+                    labels=labels,
+                    values=values,
+                    marker=dict(colors=colors),
+                    textinfo="label+value+percent",
+                    sort=False
+                )
+            ]
+        )
+
+        fig.update_layout(
+            height=320,
+            margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor="white",
+            showlegend=False
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+
+        st.markdown("### Key Status")
+
+        st.markdown(f"""
+        🟡 **On Track:** {on_track}  
+        🔴 **Delayed:** {delayed}  
+        🟢 **Accelerated:** {accelerated}
+        """)
