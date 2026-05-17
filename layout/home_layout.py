@@ -1,6 +1,7 @@
 import streamlit as st
 from cards.pie_card import render_pie
 from cards.table_card import render_table
+from delay_cl32 import render_delayed_table
 
 
 def render_home(result, df32):
@@ -26,22 +27,22 @@ def render_home(result, df32):
         st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # RIGHT CARD
+    # RIGHT CARD (REPLACED)
     # =========================
     with col2:
         st.markdown("""
         <div class="dashboard-card">
             <div class="card-title">
-                📌 Key Programme Updates
+                🔴 Delayed Deliverables (CL32)
             </div>
         """, unsafe_allow_html=True)
 
-        st.info("Reserved for future metrics (float, milestones, variance trends)")
+        render_delayed_table(df32)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # TABLE CARD
+    # TABLE CARD (UNCHANGED)
     # =========================
     st.markdown("""
     <div class="dashboard-card">
