@@ -17,7 +17,7 @@ def prepare(df):
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-    # Clean % complete
+    # Clean percentage
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
@@ -33,22 +33,19 @@ def prepare(df):
 
 
 # =========================
-# CLASSIFY STATUS
+# STATUS CLASSIFICATION
 # =========================
 def classify(row, today):
 
-    # Missing dates
     if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
         return "On Track"
 
-    # Delayed
     if (
         row["Finish"] < today
         and row["Activity % Complete"] < 100
     ):
         return "Delayed"
 
-    # Accelerated
     if (
         row["Finish"] > today
         and row["Activity % Complete"] > 0
@@ -59,7 +56,7 @@ def classify(row, today):
 
 
 # =========================
-# PIE CHART
+# PIE CARD
 # =========================
 def render_pie(df):
 
@@ -67,17 +64,21 @@ def render_pie(df):
 
     today = pd.Timestamp.today()
 
-    # Apply classification
+    # Create status column
     df["Status"] = df.apply(
         lambda r: classify(r, today),
         axis=1
     )
 
-    # Count statuses
+    # Status summary
     summary = df["Status"].value_counts().reindex(
         ["On Track", "Delayed", "Accelerated"],
         fill_value=0
     )
+
+    on_track = summary["On Track"]
+    delayed = summary["Delayed"]
+    accelerated = summary["Accelerated"]
 
     # =========================
     # CARD STYLE
@@ -87,11 +88,38 @@ def render_pie(df):
         <style>
 
         .pie-card {
-            background-color: white;
-            padding: 8px;
-            border-radius: 18px;
+            background: white;
+            border-radius: 20px;
+            padding: 15px;
             box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+            margin-bottom: 15px;
+        }
+
+        .indicator-row {
+            display: flex;
+            justify-content: space-around;
             margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .indicator-box {
+            flex: 1;
+            border-radius: 14px;
+            padding: 12px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .indicator-title {
+            font-size: 13px;
+            color: black;
+            margin-bottom: 5px;
+        }
+
+        .indicator-value {
+            font-size: 24px;
+            font-weight: 800;
+            color: black;
         }
 
         </style>
@@ -99,8 +127,44 @@ def render_pie(df):
         unsafe_allow_html=True
     )
 
+    # =========================
+    # START CARD
+    # =========================
     st.markdown(
-        '<div class="pie-card">',
+        f"""
+        <div class="pie-card">
+
+            <div class="indicator-row">
+
+                <div class="indicator-box" style="background:#FFF4B2;">
+                    <div class="indicator-title">
+                        On Track
+                    </div>
+                    <div class="indicator-value">
+                        {on_track}
+                    </div>
+                </div>
+
+                <div class="indicator-box" style="background:#FFD6D6;">
+                    <div class="indicator-title">
+                        Delayed
+                    </div>
+                    <div class="indicator-value">
+                        {delayed}
+                    </div>
+                </div>
+
+                <div class="indicator-box" style="background:#D8F5D0;">
+                    <div class="indicator-title">
+                        Accelerated
+                    </div>
+                    <div class="indicator-value">
+                        {accelerated}
+                    </div>
+                </div>
+
+            </div>
+        """,
         unsafe_allow_html=True
     )
 
@@ -113,15 +177,17 @@ def render_pie(df):
                 labels=summary.index,
                 values=summary.values,
 
+                hole=0.35,
+
                 sort=False,
 
                 textinfo="label+percent",
 
                 marker=dict(
                     colors=[
-                        "#FFD700",  # On Track = Yellow
-                        "#FF3B30",  # Delayed = Red
-                        "#00C853"   # Accelerated = Green
+                        "#FFD700",  # Yellow
+                        "#FF3B30",  # Red
+                        "#00C853"   # Green
                     ]
                 ),
 
@@ -137,13 +203,13 @@ def render_pie(df):
 
     fig.update_layout(
 
-        height=340,
+        height=350,
 
         margin=dict(
             t=0,
-            b=10,
-            l=10,
-            r=10
+            b=0,
+            l=0,
+            r=0
         ),
 
         paper_bgcolor="white",
@@ -157,7 +223,7 @@ def render_pie(df):
         legend=dict(
             orientation="h",
             yanchor="bottom",
-            y=-0.12,
+            y=-0.1,
             xanchor="center",
             x=0.5,
             font=dict(
@@ -173,7 +239,10 @@ def render_pie(df):
         config={"displayModeBar": False}
     )
 
+    # =========================
+    # END CARD
+    # =========================
     st.markdown(
-        '</div>',
+        "</div>",
         unsafe_allow_html=True
     )
