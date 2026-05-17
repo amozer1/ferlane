@@ -82,10 +82,6 @@ h1 {
     margin-bottom: 10px !important;
 }
 
-/* PIE SPACING */
-.js-plotly-plot {
-    margin-top: -10px;
-}
 
 /* REMOVE EXTRA SPACE */
 .element-container {
