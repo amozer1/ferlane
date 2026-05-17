@@ -3,9 +3,6 @@ import plotly.graph_objects as go
 import pandas as pd
 
 
-# =========================
-# PREP DATA
-# =========================
 def prepare(df):
     df = df.copy()
 
@@ -25,31 +22,23 @@ def prepare(df):
     return df
 
 
-# =========================
-# CLASSIFICATION LOGIC
-# =========================
 def classify(row, today):
+    start = row["Start"]
     finish = row["Finish"]
     pct = row["Activity % Complete"]
 
-    if pd.isna(finish):
+    if pd.isna(start) or pd.isna(finish):
         return "On Track"
 
-    # 🔴 DELAYED
     if finish < today and pct < 100:
         return "Delayed"
 
-    # 🟢 ACCELERATED
     if finish > today and pct > 0:
         return "Accelerated"
 
-    # 🟡 ON TRACK
     return "On Track"
 
 
-# =========================
-# PIE RENDER
-# =========================
 def render_pie(df):
     df = prepare(df)
     today = pd.Timestamp.today()
@@ -81,46 +70,23 @@ def render_pie(df):
         )]
     )
 
-    # =========================
-    # IMPORTANT FIX (FIT INSIDE CARD)
-    # =========================
     fig.update_layout(
-        margin=dict(t=10, b=10, l=10, r=10),
-        height=300,
-        showlegend=False,   # remove Plotly legend completely
+        title=None,
+        showlegend=False,
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)"
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=10, b=10, l=10, r=10),
+        height=280
     )
 
-    # Make pie stay inside canvas
-    fig.update_traces(
-        textposition="inside",
-        insidetextorientation="radial"
-    )
+    col1, col2 = st.columns([1.2, 1])
 
-    # =========================
-    # CARD WRAPPER
-    # =========================
-    st.markdown("""
-    <div class="dashboard-card">
-        <div class="card-title">Schedule Summary</div>
-    """, unsafe_allow_html=True)
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True,
-        config={"displayModeBar": False}
-    )
+    with col2:
+        st.markdown("### Legend")
 
-    # =========================
-    # CUSTOM LEGEND (ONLY ONE)
-    # =========================
-    st.markdown("""
-    <div style="display:flex; justify-content:space-around; margin-top:8px; font-size:14px;">
-        <div>🟡 On Track</div>
-        <div>🔴 Delayed</div>
-        <div>🟢 Accelerated</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown(f"🟡 On Track: {summary['On Track']}")
+        st.markdown(f"🔴 Delayed: {summary['Delayed']}")
+        st.markdown(f"🟢 Accelerated: {summary['Accelerated']}")
