@@ -7,9 +7,11 @@ def get_delayed(df):
 
     df.columns = df.columns.astype(str).str.strip()
 
+    # dates
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
+    # % complete cleanup
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
@@ -29,9 +31,7 @@ def get_delayed(df):
     return delayed.sort_values("Delay (Days)", ascending=False)
 
 
-def render_delayed_table(df):
-    st.markdown("")
-
+def render_table(df):
     delayed = get_delayed(df)
 
     if delayed.empty:
@@ -49,20 +49,20 @@ def render_delayed_table(df):
         }
 
         .delay-table thead {
-            background: linear-gradient(90deg, #ff4b4b, #c9184a);
+            background: linear-gradient(90deg, #ff4b4b, #b5179e);
             color: white;
         }
 
         .delay-table th {
-            padding: 10px;
+            padding: 12px;
             text-align: left;
             font-weight: 600;
         }
 
         .delay-table td {
             padding: 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
             color: white;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
 
         .delay-table tbody tr:nth-child(even) {
@@ -70,15 +70,16 @@ def render_delayed_table(df):
         }
 
         .delay-table tbody tr:hover {
-            background-color: rgba(255,75,75,0.15);
+            background-color: rgba(255,75,75,0.10);
         }
 
         .delay-badge {
             background: #ff4b4b;
             padding: 3px 8px;
-            border-radius: 8px;
+            border-radius: 6px;
             font-size: 12px;
             color: white;
+            font-weight: 600;
         }
     </style>
 
@@ -99,12 +100,12 @@ def render_delayed_table(df):
     for _, row in delayed.iterrows():
         html += f"""
         <tr>
-            <td>{row['Activity ID']}</td>
-            <td>{row['Activity Name']}</td>
+            <td>{row.get('Activity ID','')}</td>
+            <td>{row.get('Activity Name','')}</td>
             <td>{row['Start'].date() if pd.notna(row['Start']) else ''}</td>
             <td>{row['Finish'].date() if pd.notna(row['Finish']) else ''}</td>
             <td><span class="delay-badge">{int(row['Delay (Days)'])}</span></td>
-            <td>{row.get('Comments', '')}</td>
+            <td>{row.get('Comments','')}</td>
         </tr>
         """
 
