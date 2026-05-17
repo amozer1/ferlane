@@ -8,59 +8,65 @@ def render_pie(df):
 
     st.markdown("### Schedule Summary (CL32)")
 
-    df = df.copy()
-
     # =========================
     # CLEAN DATA
     # =========================
+    df = df.copy()
+
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-    df["Activity % Complete"] = (
-        df["Activity % Complete"]
-        .astype(str)
-        .str.replace("%", "", regex=False)
-    )
+    # Convert % Complete safely
+    def parse_pct(x):
+        try:
+            return float(str(x).replace("%", ""))
+        except:
+            return 0
 
-    df["Activity % Complete"] = pd.to_numeric(df["Activity % Complete"], errors="coerce").fillna(0)
+    df["Progress"] = df["Activity % Complete"].apply(parse_pct)
 
     today = pd.to_datetime(datetime.today().date())
 
     # =========================
-    # EXPECTED PROGRESS
-    # =========================
-    duration = (df["Finish"] - df["Start"]).dt.days
-    elapsed = (today - df["Start"]).dt.days
-
-    df["Expected"] = (elapsed / duration) * 100
-    df["Expected"] = df["Expected"].fillna(0)
-
-    # =========================
-    # CLASSIFICATION LOGIC
+    # STATUS CALCULATION
     # =========================
     def classify(row):
         if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
-            return None
+            return "On Track"
 
-        if row["Activity % Complete"] >= row["Expected"] + 5:
-            return "Accelerated"
-        elif row["Activity % Complete"] <= row["Expected"] - 5:
+        total_days = (row["Finish"] - row["Start"]).days
+        elapsed = (today - row["Start"]).days
+
+        if total_days <= 0:
+            return "On Track"
+
+        time_progress = max(min(elapsed / total_days, 1), 0)
+        actual_progress = row["Progress"] / 100
+
+        diff = actual_progress - time_progress
+
+        if diff < -0.1:
             return "Delayed"
+        elif diff > 0.1:
+            return "Accelerated"
         else:
             return "On Track"
 
-    df["Status"] = df.apply(classify, axis=1)
-    df = df[df["Status"].notna()]
+    df["Programme Status"] = df.apply(classify, axis=1)
 
     # =========================
-    # SUMMARY (INCLUDES ZEROS)
+    # SUMMARY
     # =========================
-    summary = df["Status"].value_counts().reindex(
-        ["On Track", "Delayed", "Accelerated"],
-        fill_value=0
-    ).reset_index()
-
+    summary = df["Programme Status"].value_counts().reset_index()
     summary.columns = ["Status", "Count"]
+
+    # ensure all exist even if zero
+    for s in ["On Track", "Delayed", "Accelerated"]:
+        if s not in summary["Status"].values:
+            summary = pd.concat([
+                summary,
+                pd.DataFrame([{"Status": s, "Count": 0}])
+            ])
 
     # =========================
     # COLORS
@@ -72,42 +78,26 @@ def render_pie(df):
     }
 
     # =========================
-    # FIXED SIZE PIE (IMPORTANT)
+    # PIE (THICK PIE - NOT DONUT)
     # =========================
     fig = px.pie(
         summary,
         names="Status",
         values="Count",
         color="Status",
-        color_discrete_map=color_map,
-        hole=0  # 🔥 THICK PIE (NOT DONUT BORDER EFFECT)
+        color_discrete_map=color_map
+    )
+
+    fig.update_traces(
+        textinfo="label+value+percent",
+        hole=0  # IMPORTANT → solid pie
     )
 
     fig.update_layout(
-        height=320,
-        margin=dict(t=20, b=20, l=20, r=20),
         paper_bgcolor="white",
         plot_bgcolor="white",
-        showlegend=False
+        margin=dict(t=10, b=10, l=10, r=10),
+        height=380
     )
 
-    # =========================
-    # LEGEND INSIDE CARD (MANUAL)
-    # =========================
-    col1, col2 = st.columns([1.2, 1])
-
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        st.markdown("""
-        **Legend**
-
-        🟡 On Track: {0}  
-        🔴 Delayed: {1}  
-        🟢 Accelerated: {2}
-        """.format(
-            int(summary[summary["Status"]=="On Track"]["Count"].values[0]),
-            int(summary[summary["Status"]=="Delayed"]["Count"].values[0]),
-            int(summary[summary["Status"]=="Accelerated"]["Count"].values[0]),
-        ))
+    st.plotly_chart(fig, use_container_width=True)
