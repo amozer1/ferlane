@@ -2,14 +2,9 @@ import streamlit as st
 import pandas as pd
 
 
-def render_header(start_date=None, end_date=None):
+def render_header():
 
     today = pd.Timestamp.today().strftime("%d %b %Y")
-
-    date_range = f"Report Date: {today}"
-
-    if start_date and end_date:
-        date_range = f"Programme Window: {start_date} → {end_date} | Report: {today}"
 
     st.markdown(f"""
     <div style="
@@ -36,7 +31,7 @@ def render_header(start_date=None, end_date=None):
             color: #2d6a4f;
             font-weight: 500;
         ">
-            📅 {date_range}
+            📅 Report Date: {today}
         </div>
 
     </div>
