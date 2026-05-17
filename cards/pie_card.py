@@ -77,17 +77,24 @@ def render_pie(df):
     )
 
     # =========================
-    # SINGLE CARD ONLY
+    # PURE STREAMLIT CARD FIX
     # =========================
+
     st.markdown(
         """
         <style>
-        .status-card {
+        .block-card {
             background: white;
-            padding: 18px;
             border-radius: 18px;
+            padding: 16px;
             box-shadow: 0 4px 14px rgba(0,0,0,0.10);
-            height: 420px;
+        }
+
+        .kpi-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: black;
+            margin-bottom: 10px;
         }
 
         .legend-item {
@@ -104,50 +111,47 @@ def render_pie(df):
             border-radius: 50%;
             margin-right: 10px;
         }
-
-        .title {
-            font-size: 18px;
-            font-weight: 700;
-            color: black;
-            margin-bottom: 10px;
-        }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    # ONE CONTAINER ONLY
+    # TRUE CARD STRUCTURE (NO HTML WRAPPER)
     with st.container():
 
-        st.markdown('<div class="status-card">', unsafe_allow_html=True)
+        col_card = st.columns(1)[0]
 
-        st.markdown('<div class="title">Programme Status Overview</div>', unsafe_allow_html=True)
+        with col_card:
 
-        col1, col2 = st.columns([2, 1])
+            st.markdown('<div class="block-card">', unsafe_allow_html=True)
 
-        with col1:
-            st.plotly_chart(
-                fig,
-                use_container_width=True,
-                config={"displayModeBar": False}
-            )
+            st.markdown('<div class="kpi-title">Programme Status</div>', unsafe_allow_html=True)
 
-        with col2:
-            st.markdown(f"""
-                <div class="legend-item">
-                    <div class="dot" style="background:#FFD700;"></div>
-                    On Track: {summary['On Track']}
-                </div>
+            col1, col2 = st.columns([2.2, 1])
 
-                <div class="legend-item">
-                    <div class="dot" style="background:#FF3B30;"></div>
-                    Delayed: {summary['Delayed']}
-                </div>
+            with col1:
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True,
+                    config={"displayModeBar": False}
+                )
 
-                <div class="legend-item">
-                    <div class="dot" style="background:#00C853;"></div>
-                    Accelerated: {summary['Accelerated']}
-                </div>
-            """, unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"""
+                    <div class="legend-item">
+                        <div class="dot" style="background:#FFD700;"></div>
+                        On Track: {summary['On Track']}
+                    </div>
 
-        st.markdown('</div>', unsafe_allow_html=True)
+                    <div class="legend-item">
+                        <div class="dot" style="background:#FF3B30;"></div>
+                        Delayed: {summary['Delayed']}
+                    </div>
+
+                    <div class="legend-item">
+                        <div class="dot" style="background:#00C853;"></div>
+                        Accelerated: {summary['Accelerated']}
+                    </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown('</div>', unsafe_allow_html=True)
