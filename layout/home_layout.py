@@ -13,14 +13,12 @@ def render_home(result, df32):
     col1, col2 = st.columns([1, 1])
 
     # =========================
-    # PIE (CL32 ONLY)
+    # PIE
     # =========================
     with col1:
         st.markdown("""
         <div class="dashboard-card">
-            <div class="card-title">
-                📊 Schedule Summary (CL32)
-            </div>
+            <div class="card-title">📊 Schedule Summary (CL32)</div>
         """, unsafe_allow_html=True)
 
         render_pie(df32)
@@ -28,14 +26,12 @@ def render_home(result, df32):
         st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # DELAYED (CL32 ONLY)
+    # DELAYED
     # =========================
     with col2:
         st.markdown("""
         <div class="dashboard-card">
-            <div class="card-title">
-                🔴 Delayed Activities (CL32)
-            </div>
+            <div class="card-title">🔴 Delayed Activities (CL32)</div>
         """, unsafe_allow_html=True)
 
         render_delayed_table(df32)
@@ -43,13 +39,11 @@ def render_home(result, df32):
         st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # DELIVERABLE REGISTER (CL31 vs CL32)
+    # REGISTER
     # =========================
     st.markdown("""
     <div class="dashboard-card">
-        <div class="card-title">
-            📋 Deliverable Register (CL31 vs CL32)
-        </div>
+        <div class="card-title">📋 Deliverable Register (CL31 vs CL32)</div>
     """, unsafe_allow_html=True)
 
     render_table(result)
