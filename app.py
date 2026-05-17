@@ -106,3 +106,14 @@ result = build_deliverables(df31, df32)
 # RENDER DASHBOARD
 # =========================
 render_home(result, df32)
+
+/* =========================
+   DATAFRAME HEADERS ONLY
+========================= */
+
+[data-testid="stDataFrame"] thead tr th {
+    background-color: #3a3a3a !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+}
