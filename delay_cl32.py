@@ -1,8 +1,10 @@
+import streamlit as st
 import pandas as pd
 
 
-def prepare(df):
+def _prepare(df):
     df = df.copy()
+
     df.columns = df.columns.astype(str).str.strip()
 
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
@@ -13,13 +15,16 @@ def prepare(df):
         .astype(str)
         .str.replace("%", "", regex=False)
     )
-    df["Activity % Complete"] = pd.to_numeric(df["Activity % Complete"], errors="coerce").fillna(0)
+    df["Activity % Complete"] = pd.to_numeric(
+        df["Activity % Complete"],
+        errors="coerce"
+    ).fillna(0)
 
     return df
 
 
-def get_delayed(df):
-    df = prepare(df)
+def _get_delayed(df):
+    df = _prepare(df)
     today = pd.Timestamp.today()
 
     delayed = df[
@@ -29,29 +34,32 @@ def get_delayed(df):
 
     delayed["Delay (Days)"] = (today - delayed["Finish"]).dt.days
 
-    delayed = delayed[
-        [
-            "Activity ID",
-            "Activity Name",
-            "Start",
-            "Finish",
-            "Delay (Days)",
-            "Comments"
-        ]
-    ].sort_values("Delay (Days)", ascending=False)
-
-    return delayed
+    return delayed.sort_values("Delay (Days)", ascending=False)
 
 
 def render_delayed_table(df):
-    import streamlit as st
+    delayed = _get_delayed(df)
 
     st.markdown("### 🔴 Delayed Deliverables (CL32)")
 
-    delayed = get_delayed(df)
+    if delayed.empty:
+        st.success("No delayed activities 🎯")
+        return
+
+    view = delayed[[
+        "Activity ID",
+        "Activity Name",
+        "Start",
+        "Finish",
+        "Delay (Days)",
+        "Comments"
+    ]].copy()
+
+    view["Start"] = view["Start"].dt.strftime("%d-%b-%Y")
+    view["Finish"] = view["Finish"].dt.strftime("%d-%b-%Y")
 
     st.dataframe(
-        delayed,
+        view,
         use_container_width=True,
         hide_index=True
     )
