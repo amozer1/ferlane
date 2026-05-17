@@ -4,24 +4,22 @@ import numpy as np
 
 
 # =========================
-# DATA PREPARATION
+# DATA PREP
 # =========================
 def _prepare(df):
     df = df.copy()
 
-    # Clean column names
     df.columns = df.columns.astype(str).str.strip()
 
-    # Convert dates
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-    # Clean % complete
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
         .str.replace("%", "", regex=False)
     )
+
     df["Activity % Complete"] = (
         pd.to_numeric(df["Activity % Complete"], errors="coerce")
         .fillna(0)
@@ -44,7 +42,6 @@ def _get_delayed(df):
 
     delayed["Delay (Days)"] = (today - delayed["Finish"]).dt.days
 
-    # Severity bands
     delayed["Severity"] = pd.cut(
         delayed["Delay (Days)"],
         bins=[-1, 7, 30, 90, np.inf],
@@ -55,7 +52,22 @@ def _get_delayed(df):
 
 
 # =========================
-# TABLE RENDERER
+# COLOUR LOGIC (STREAMLIT SAFE)
+# =========================
+def style_severity_column(col):
+    """Streamlit-safe column styling using Styler.map"""
+    return [
+        "background-color:#4a4a00; color:white; font-weight:bold" if "Low" in str(v)
+        else "background-color:#a66a00; color:white; font-weight:bold" if "Medium" in str(v)
+        else "background-color:#8b1e1e; color:white; font-weight:bold" if "High" in str(v)
+        else "background-color:#5a0000; color:white; font-weight:bold" if "Critical" in str(v)
+        else ""
+        for v in col
+    ]
+
+
+# =========================
+# MAIN TABLE RENDER
 # =========================
 def render_delayed_table(df):
     delayed = _get_delayed(df)
@@ -85,11 +97,11 @@ def render_delayed_table(df):
     )
 
     # =========================
-    # STYLING (DASHBOARD LOOK)
+    # DASHBOARD STYLING
     # =========================
     styled = display_df.style
 
-    # Header styling (IMPORTANT VISUAL UPGRADE)
+    # Header + table styling
     styled = styled.set_table_styles([
         {
             "selector": "th",
@@ -99,7 +111,7 @@ def render_delayed_table(df):
                 ("font-size", "13px"),
                 ("font-weight", "bold"),
                 ("text-transform", "uppercase"),
-                ("letter-spacing", "1.2px"),
+                ("letter-spacing", "1px"),
                 ("padding", "10px"),
                 ("border-bottom", "3px solid #ffcc00"),
                 ("text-align", "left")
@@ -123,26 +135,13 @@ def render_delayed_table(df):
         }
     ])
 
-    # Severity colour coding
-    def highlight_severity(val):
-        if "Critical" in str(val):
-            return "background-color:#5a0000; color:white; font-weight:bold"
-        elif "High" in str(val):
-            return "background-color:#8b1e1e; color:white; font-weight:bold"
-        elif "Medium" in str(val):
-            return "background-color:#a66a00; color:white; font-weight:bold"
-        elif "Low" in str(val):
-            return "background-color:#4a4a00; color:white; font-weight:bold"
-        return ""
-
-    styled = styled.applymap(
-        highlight_severity,
+    # FIXED: no applymap (pandas 2+ safe)
+    styled = styled.apply(
+        style_severity_column,
         subset=["Severity"]
     )
 
-    # =========================
-    # RENDER
-    # =========================
+    # Render
     st.dataframe(
         styled,
         use_container_width=True,
