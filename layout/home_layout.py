@@ -12,7 +12,7 @@ from cards.table_card import render_table
 def render_dashboard(result, df32):
 
     # =========================
-    # SECTION 1 — SUMMARY
+    # SECTION 1 — PIE CHART
     # =========================
     st.markdown("""
     <div class="dashboard-card">
@@ -25,7 +25,7 @@ def render_dashboard(result, df32):
 
 
     # =========================
-    # SECTION 2 — RISK + FORECAST
+    # SECTION 2 — DELAY + FORECAST
     # =========================
     col1, col2 = st.columns(2)
 
