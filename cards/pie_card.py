@@ -11,10 +11,28 @@ def render_pie(result):
     delayed = (result["Change Type"] == "DELAYED").sum()
     accelerated = (result["Change Type"] == "EARLY").sum()
 
+    labels = [
+        "On Track",
+        "Delayed",
+        "Accelerated"
+    ]
+
+    values = [
+        on_track,
+        delayed,
+        accelerated
+    ]
+
+    colors = [
+        "gold",
+        "red",
+        "green"
+    ]
+
     # =========================
-    # LAYOUT
+    # CARD LAYOUT
     # =========================
-    left, right = st.columns([1.3, 1])
+    left, right = st.columns([1.2, 1])
 
     # =========================
     # PIE
@@ -24,24 +42,13 @@ def render_pie(result):
         fig = go.Figure(
             data=[
                 go.Pie(
-                    labels=[
-                        "On Track",
-                        "Delayed",
-                        "Accelerated"
-                    ],
-                    values=[
-                        on_track,
-                        delayed,
-                        accelerated
-                    ],
-                    marker=dict(
-                        colors=[
-                            "gold",
-                            "red",
-                            "green"
-                        ]
-                    ),
-                    textinfo="none",
+                    labels=labels,
+                    values=values,
+                    hole=0,
+                    marker=dict(colors=colors),
+                    textinfo="percent+value",
+                    textfont_size=14,
+                    insidetextorientation="radial",
                     sort=False
                 )
             ]
@@ -49,13 +56,13 @@ def render_pie(result):
 
         fig.update_layout(
             autosize=False,
-            width=260,
-            height=260,
+            width=250,
+            height=250,
             margin=dict(
-                l=10,
-                r=10,
-                t=10,
-                b=10
+                l=0,
+                r=0,
+                t=0,
+                b=0
             ),
             paper_bgcolor="white",
             plot_bgcolor="white",
@@ -64,7 +71,10 @@ def render_pie(result):
 
         st.plotly_chart(
             fig,
-            use_container_width=False
+            use_container_width=False,
+            config={
+                "displayModeBar": False
+            }
         )
 
     # =========================
@@ -73,19 +83,36 @@ def render_pie(result):
     with right:
 
         st.markdown(f"""
-        <div style='padding-top:55px;'>
+        <div style="
+            padding-top:45px;
+            padding-left:10px;
+        ">
 
-        <p style='color:gold; font-size:18px; font-weight:700;'>
+        <div style="
+            color:gold;
+            font-size:18px;
+            font-weight:700;
+            margin-bottom:18px;
+        ">
         ● On Track: {on_track}
-        </p>
+        </div>
 
-        <p style='color:red; font-size:18px; font-weight:700;'>
+        <div style="
+            color:red;
+            font-size:18px;
+            font-weight:700;
+            margin-bottom:18px;
+        ">
         ● Delayed: {delayed}
-        </p>
+        </div>
 
-        <p style='color:limegreen; font-size:18px; font-weight:700;'>
+        <div style="
+            color:limegreen;
+            font-size:18px;
+            font-weight:700;
+        ">
         ● Accelerated: {accelerated}
-        </p>
+        </div>
 
         </div>
         """, unsafe_allow_html=True)
