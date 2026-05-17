@@ -5,9 +5,6 @@ import pandas as pd
 
 def render_pie(result):
 
-    # =========================
-    # CREATE STATUS
-    # =========================
     pie_df = pd.DataFrame()
 
     pie_df["Programme Status"] = result["Change Type"].map({
@@ -16,12 +13,8 @@ def render_pie(result):
         "EARLY": "Accelerated"
     })
 
-    # REMOVE EMPTY
     pie_df = pie_df.dropna()
 
-    # =========================
-    # SUMMARY
-    # =========================
     summary = (
         pie_df["Programme Status"]
         .value_counts()
@@ -30,18 +23,12 @@ def render_pie(result):
 
     summary.columns = ["Status", "Count"]
 
-    # =========================
-    # COLORS
-    # =========================
     color_map = {
         "On Track": "gold",
         "Delayed": "red",
         "Accelerated": "green"
     }
 
-    # =========================
-    # PIE
-    # =========================
     fig = px.pie(
         summary,
         names="Status",
@@ -53,11 +40,12 @@ def render_pie(result):
 
     fig.update_layout(
         title="Programme Update",
-        paper_bgcolor="#1e1e2f",
-        plot_bgcolor="#1e1e2f",
-        font_color="white",
-        height=420,
-        margin=dict(t=60, b=20, l=20, r=20)
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        font_color="black",
+        height=280,
+        margin=dict(t=40, b=10, l=10, r=10),
+        showlegend=True
     )
 
     st.plotly_chart(
