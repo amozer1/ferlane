@@ -54,48 +54,54 @@ def render_delayed_table(df):
         "Comments"
     ]].copy()
 
-    # Format dates ONLY for display (no data change)
+    # Format dates ONLY for display
     display_df["Start"] = display_df["Start"].dt.strftime("%d-%b-%Y")
     display_df["Finish"] = display_df["Finish"].dt.strftime("%d-%b-%Y")
 
     # =========================
-    # VISUAL FORMATTING ONLY
+    # VISUAL STYLE ONLY
     # =========================
     styled = display_df.style.set_table_styles([
+        # HEADER STYLE (clean blue-grey dashboard look)
         {
             "selector": "th",
             "props": [
-                ("background-color", "#140021"),
+                ("background-color", "#2b3a55"),
                 ("color", "white"),
                 ("font-size", "13px"),
-                ("font-weight", "bold"),
+                ("font-weight", "600"),
                 ("text-transform", "uppercase"),
                 ("letter-spacing", "1px"),
                 ("padding", "10px"),
-                ("border-bottom", "3px solid #ffcc00"),
+                ("border-bottom", "2px solid #4da3ff"),
+                ("border-right", "1px solid #3a4a66"),
                 ("text-align", "left")
             ]
         },
+
+        # TABLE CELLS
         {
             "selector": "td",
             "props": [
                 ("padding", "8px"),
-                ("background-color", "#1e0033"),
-                ("color", "white"),
-                ("border-bottom", "1px solid #2d004d")
+                ("background-color", "#1c2233"),
+                ("color", "#f1f1f1"),
+                ("border-bottom", "1px solid #2a3347"),
+                ("border-right", "1px solid #2a3347")
             ]
         },
+
+        # TABLE BASE
         {
             "selector": "table",
             "props": [
                 ("border-collapse", "collapse"),
-                ("width", "100%")
+                ("width", "100%"),
+                ("background-color", "#1c2233")
             ]
         }
     ])
 
-    st.dataframe(
-        styled,
-        use_container_width=True,
-        hide_index=True
-    )
+    # Render (keeps styling intact)
+    st.write(styled)
+    
