@@ -12,7 +12,6 @@ st.set_page_config(layout="wide")
 # =========================
 # GLOBAL STYLING
 # =========================
-
 st.markdown("""
 <style>
 
@@ -20,7 +19,7 @@ st.markdown("""
     background-color: #140021;
 }
 
-/* MAIN PAGE */
+/* PAGE LAYOUT */
 .block-container {
     padding-top: 1rem;
     padding-bottom: 0rem;
@@ -29,12 +28,12 @@ st.markdown("""
     max-width: 100%;
 }
 
-/* REMOVE HUGE GAPS */
+/* REDUCE GAPS */
 div[data-testid="stVerticalBlock"] > div {
     gap: 0.6rem;
 }
 
-/* CARD STYLE */
+/* CARD */
 .dashboard-card {
     background-color: #240046;
     border-radius: 14px;
@@ -44,7 +43,7 @@ div[data-testid="stVerticalBlock"] > div {
     box-shadow: 0px 3px 10px rgba(0,0,0,0.25);
 }
 
-/* CARD TITLES */
+/* TITLE */
 .card-title {
     color: white;
     font-size: 18px;
@@ -71,18 +70,18 @@ h1, h2, h3, h4, h5, h6, p, div {
     color: white;
 }
 
-/* TITLE */
+/* TITLE SIZE */
 h1 {
     font-size: 28px !important;
     margin-bottom: 10px !important;
 }
 
-/* PIE CHART CONTAINER */
+/* PIE SPACING */
 .js-plotly-plot {
     margin-top: -10px;
 }
 
-/* REMOVE EXTRA WHITESPACE */
+/* REMOVE EXTRA SPACE */
 .element-container {
     margin-bottom: 0.4rem !important;
 }
@@ -104,6 +103,6 @@ df32 = load_cl32()
 result = build_deliverables(df31, df32)
 
 # =========================
-# RENDER HOME
+# RENDER DASHBOARD
 # =========================
-render_home(result)
+render_home(result, df32)
