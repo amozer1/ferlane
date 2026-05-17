@@ -56,9 +56,6 @@ def render_pie(df):
         "Accelerated": "#00C853"
     }
 
-    # =========================
-    # PIE (clean, no top gap)
-    # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
@@ -66,44 +63,36 @@ def render_pie(df):
             sort=False,
             textinfo="label+percent",
             marker=dict(colors=[colors[k] for k in summary.index]),
-            textfont=dict(color="black", size=13),
-            pull=[0.03, 0.03, 0.03],
-            hole=0
+            textfont=dict(color="white", size=13),
+            pull=[0.03, 0.03, 0.03]
         )]
     )
 
     fig.update_layout(
         margin=dict(l=0, r=0, t=0, b=0),
         height=360,
-        paper_bgcolor="white",
-        plot_bgcolor="white",
+        paper_bgcolor="#140021",
+        plot_bgcolor="#140021",
         showlegend=False
     )
 
     # =========================
-    # SINGLE STREAMLIT CARD
+    # DARK CARD STYLE
     # =========================
     st.markdown(
         """
         <style>
         .card {
-            background: white;
+            background: #1e0b2e;
             border-radius: 18px;
             padding: 18px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.10);
-        }
-
-        .title {
-            font-size: 18px;
-            font-weight: 700;
-            color: black;
-            margin-bottom: 12px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.35);
         }
 
         .item {
             font-size: 15px;
             margin-bottom: 14px;
-            color: black;
+            color: white;
             display: flex;
             align-items: center;
         }
@@ -124,12 +113,9 @@ def render_pie(df):
         unsafe_allow_html=True
     )
 
-    # ONE CARD ONLY
     with st.container():
 
         st.markdown('<div class="card">', unsafe_allow_html=True)
-
-        st.markdown('<div class="title">Programme Status Overview</div>', unsafe_allow_html=True)
 
         col1, col2 = st.columns([2.2, 1])
 
