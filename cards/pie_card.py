@@ -85,13 +85,15 @@ def render_pie(df):
     st.markdown(
         """
         <style>
+
         .pie-card {
             background-color: white;
-            padding: 18px;
+            padding: 8px;
             border-radius: 18px;
             box-shadow: 0 4px 14px rgba(0,0,0,0.12);
             margin-bottom: 10px;
         }
+
         </style>
         """,
         unsafe_allow_html=True
@@ -110,14 +112,16 @@ def render_pie(df):
             go.Pie(
                 labels=summary.index,
                 values=summary.values,
+
                 sort=False,
+
                 textinfo="label+percent",
 
                 marker=dict(
                     colors=[
-                        "#FFD700",  # Yellow = On Track
-                        "#FF3B30",  # Red = Delayed
-                        "#00C853"   # Green = Accelerated
+                        "#FFD700",  # On Track = Yellow
+                        "#FF3B30",  # Delayed = Red
+                        "#00C853"   # Accelerated = Green
                     ]
                 ),
 
@@ -133,10 +137,10 @@ def render_pie(df):
 
     fig.update_layout(
 
-        height=350,
+        height=340,
 
         margin=dict(
-            t=10,
+            t=0,
             b=10,
             l=10,
             r=10
@@ -153,16 +157,20 @@ def render_pie(df):
         legend=dict(
             orientation="h",
             yanchor="bottom",
-            y=-0.15,
+            y=-0.12,
             xanchor="center",
             x=0.5,
-            font=dict(color="black")
+            font=dict(
+                color="black",
+                size=13
+            )
         )
     )
 
     st.plotly_chart(
         fig,
-        use_container_width=True
+        use_container_width=True,
+        config={"displayModeBar": False}
     )
 
     st.markdown(
