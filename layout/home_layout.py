@@ -1,7 +1,7 @@
 import streamlit as st
 
 from cards.pie_card import render_pie
-from cards.delay_card import render_delayed_table
+from cards.delay_cl32 import render_delayed_table
 from cards.table_card import render_table
 
 
@@ -28,13 +28,13 @@ def render_home(result, df32):
         st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # DELAYED TABLE (CL32 ONLY)
+    # DELAYED (CL32 ONLY)
     # =========================
     with col2:
         st.markdown("""
         <div class="dashboard-card">
             <div class="card-title">
-                🔴 Delayed Deliverables (CL32)
+                🔴 Delayed Activities (CL32)
             </div>
         """, unsafe_allow_html=True)
 
