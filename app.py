@@ -70,13 +70,6 @@ div[data-testid="stMetric"] {
     overflow: hidden;
 }
 
-/* TABLE HEADERS ONLY */
-[data-testid="stDataFrame"] thead tr th {
-    background-color: #3a3a3a !important;
-    color: #ffffff !important;
-    font-weight: 600 !important;
-    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
-}
 
 /* TEXT */
 h1, h2, h3, h4, h5, h6, p, div {
