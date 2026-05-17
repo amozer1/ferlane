@@ -24,7 +24,6 @@ def render_pie(result):
         summary,
         names="Status",
         values="Count",
-        hole=0.5,
         color="Status",
         color_discrete_map={
             "On Track": "gold",
@@ -33,14 +32,21 @@ def render_pie(result):
         }
     )
 
+    # =========================
+    # MAKE PIE THICK + FIT CARD
+    # =========================
+    fig.update_traces(
+        textinfo="none",
+        sort=False
+    )
+
     fig.update_layout(
-        height=220,
-        margin=dict(t=0, b=0, l=0, r=0),
+        height=190,
+        margin=dict(t=5, b=5, l=5, r=5),
         paper_bgcolor="white",
         plot_bgcolor="white",
         showlegend=False
     )
-
     # =========================
     # LAYOUT
     # =========================
