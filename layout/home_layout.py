@@ -7,66 +7,48 @@ from cards.table_card import render_table
 def render_home(result):
 
     # =========================
-    # TOP ROW (2 CARDS)
+    # TOP ROW
     # =========================
-    top1, top2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
     # =========================
     # PIE CARD
     # =========================
-    with top1:
+    with col1:
 
         st.markdown("""
-        <div class="dashboard-card" style="height:360px;">
-            <div class="card-title">
-                📊 Key Programme Updates
-            </div>
+        <div class="dashboard-card">
+            <div class="card-title">📊 Key Programme Updates</div>
+        </div>
         """, unsafe_allow_html=True)
 
         render_pie(result)
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
     # =========================
     # SUMMARY CARD
     # =========================
-    with top2:
+    with col2:
 
         st.markdown("""
-        <div class="dashboard-card" style="height:360px;">
-            <div class="card-title">
-                📌 Programme Summary
-            </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-        <div style="font-size:15px; line-height:1.6;">
-
-        • CL31 baseline compared against CL32 forecast dates.<br><br>
-
-        • Delayed = activities pushed later than baseline.<br><br>
-
-        • Accelerated = activities brought forward.<br><br>
-
-        • On Track = no change in programme dates.<br><br>
-
-        • Deliverables listed in programme order.
-
+        <div class="dashboard-card">
+            <div class="card-title">📌 Programme Summary</div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.write("""
+        • CL31 baseline compared against CL32 forecast dates  
+        • Delayed = later than baseline  
+        • Accelerated = earlier than baseline  
+        • On Track = unchanged  
+        """)
 
     # =========================
-    # TABLE CARD
+    # TABLE
     # =========================
     st.markdown("""
     <div class="dashboard-card">
-        <div class="card-title">
-            📋 Deliverable Register
+        <div class="card-title">📋 Deliverable Register</div>
         </div>
     """, unsafe_allow_html=True)
 
     render_table(result)
-
-    st.markdown("</div>", unsafe_allow_html=True)
