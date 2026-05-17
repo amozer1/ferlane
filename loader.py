@@ -1,19 +1,40 @@
 import pandas as pd
+import re
 
 
 def _clean_columns(df):
-    df.columns = (
-        df.columns
-        .astype(str)
-        .str.strip()
-        .str.replace("\n", " ", regex=False)
-    )
+    cleaned = []
+
+    for col in df.columns:
+        col = str(col)
+
+        # remove weird unicode spaces
+        col = col.replace("\u00a0", " ")
+
+        # remove line breaks
+        col = col.replace("\n", " ")
+
+        # collapse multiple spaces
+        col = re.sub(r"\s+", " ", col)
+
+        # strip
+        col = col.strip()
+
+        cleaned.append(col)
+
+    df.columns = cleaned
     return df
 
 
 def _load(path):
     df = pd.read_excel(path, engine="openpyxl")
-    return _clean_columns(df)
+
+    df = _clean_columns(df)
+
+    # FINAL SAFETY CHECK (VERY IMPORTANT)
+    df.columns = [c.strip() for c in df.columns]
+
+    return df
 
 
 def load_cl31(path="data/CL31-February.xlsx"):
