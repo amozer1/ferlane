@@ -7,38 +7,33 @@ from cards.table_card import render_table
 
 def render_home(result, df32):
 
-    # =========================
-    # GLOBAL PAGE LAYOUT FIX
-    # =========================
-    st.markdown("""
-        <style>
-        .block-container {
-            padding-top: 1.5rem;
-            padding-bottom: 2rem;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # =========================
-    # TOP ROW (PIE + DELAYED)
-    # =========================
-    col1, col2 = st.columns(2, gap="large")
+    col1, col2 = st.columns([1, 1])
 
     with col1:
-        st.container()
-        st.subheader("📊 Schedule Summary (CL32)")
+        st.markdown("""
+        <div class="dashboard-card">
+            <div class="card-title">📊 Schedule Summary (CL32)</div>
+        """, unsafe_allow_html=True)
+
         render_pie(df32)
 
+        st.markdown("</div>", unsafe_allow_html=True)
+
     with col2:
-        st.container()
-        st.subheader("🔴 Delayed Activities (CL32)")
+        st.markdown("""
+        <div class="dashboard-card">
+            <div class="card-title">🔴 Delayed Activities (CL32)</div>
+        """, unsafe_allow_html=True)
+
         render_delayed_table(df32)
 
-    # =========================
-    # FULL WIDTH TABLE
-    # =========================
-    st.markdown("---")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    st.container()
-    st.subheader("📋 Deliverable Register (CL31 vs CL32)")
+    st.markdown("""
+    <div class="dashboard-card">
+        <div class="card-title">📋 Deliverable Register (CL31 vs CL32)</div>
+    """, unsafe_allow_html=True)
+
     render_table(result)
+
+    st.markdown("</div>", unsafe_allow_html=True)
