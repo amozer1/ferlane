@@ -7,18 +7,38 @@ from cards.table_card import render_table
 
 def render_home(result, df32):
 
-    col1, col2 = st.columns(2)
+    # =========================
+    # GLOBAL PAGE LAYOUT FIX
+    # =========================
+    st.markdown("""
+        <style>
+        .block-container {
+            padding-top: 1.5rem;
+            padding-bottom: 2rem;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # =========================
+    # TOP ROW (PIE + DELAYED)
+    # =========================
+    col1, col2 = st.columns(2, gap="large")
 
     with col1:
-        st.container(border=True)
+        st.container()
         st.subheader("📊 Schedule Summary (CL32)")
         render_pie(df32)
 
     with col2:
-        st.container(border=True)
+        st.container()
         st.subheader("🔴 Delayed Activities (CL32)")
         render_delayed_table(df32)
 
-    st.container(border=True)
+    # =========================
+    # FULL WIDTH TABLE
+    # =========================
+    st.markdown("---")
+
+    st.container()
     st.subheader("📋 Deliverable Register (CL31 vs CL32)")
     render_table(result)
