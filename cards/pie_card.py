@@ -56,41 +56,49 @@ def render_pie(df):
             values=summary.values,
             sort=False,
             textinfo="label+percent",
-
             marker=dict(
-                colors=[
-                    "#FFD700",  # On Track
-                    "#FF3B30",  # Delayed
-                    "#00C853"   # Accelerated
-                ]
+                colors=["#FFD700", "#FF3B30", "#00C853"]
             ),
-
             textfont=dict(color="black", size=14),
-            hole=0,
             pull=[0.02, 0.02, 0.02]
         )]
     )
 
     fig.update_layout(
         margin=dict(l=0, r=0, t=0, b=0),
-        height=330,
+        height=320,
         paper_bgcolor="white",
         plot_bgcolor="white",
         showlegend=True,
         legend=dict(
             orientation="h",
-            y=-0.1,
+            y=-0.15,
             x=0.5,
             xanchor="center",
             font=dict(color="black")
         )
     )
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True,
-        config={
-            "displayModeBar": False,
-            "responsive": True
-        }
-    )
+    # =========================
+    # STREAMLIT CARD (NO HTML)
+    # =========================
+    with st.container():
+        st.markdown(
+            """
+            <style>
+            div[data-testid="stContainer"] {
+                background: white;
+                padding: 12px;
+                border-radius: 16px;
+                box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+            config={"displayModeBar": False}
+        )
