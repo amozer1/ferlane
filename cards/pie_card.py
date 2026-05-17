@@ -5,50 +5,73 @@ import pandas as pd
 
 def render_pie(result):
 
-    pie_df = pd.DataFrame()
+    # =========================
+    # COUNTS
+    # =========================
+    on_track = (result["Change Type"] == "UNCHANGED").sum()
+    delayed = (result["Change Type"] == "DELAYED").sum()
+    accelerated = (result["Change Type"] == "EARLY").sum()
 
-    pie_df["Programme Status"] = result["Change Type"].map({
-        "UNCHANGED": "On Track",
-        "DELAYED": "Delayed",
-        "EARLY": "Accelerated"
+    summary = pd.DataFrame({
+        "Status": ["On Track", "Delayed", "Accelerated"],
+        "Count": [on_track, delayed, accelerated]
     })
 
-    pie_df = pie_df.dropna()
-
-    summary = (
-        pie_df["Programme Status"]
-        .value_counts()
-        .reset_index()
-    )
-
-    summary.columns = ["Status", "Count"]
-
-    color_map = {
-        "On Track": "gold",
-        "Delayed": "red",
-        "Accelerated": "green"
-    }
-
+    # =========================
+    # PIE
+    # =========================
     fig = px.pie(
         summary,
         names="Status",
         values="Count",
+        hole=0.5,
         color="Status",
-        color_discrete_map=color_map,
-        hole=0.45
+        color_discrete_map={
+            "On Track": "gold",
+            "Delayed": "red",
+            "Accelerated": "green"
+        }
     )
 
     fig.update_layout(
-        title="Programme Update",
+        height=220,
+        margin=dict(t=0, b=0, l=0, r=0),
         paper_bgcolor="white",
         plot_bgcolor="white",
-        font_color="black",
-        height=280,
-        margin=dict(t=40, b=10, l=10, r=10),
-        showlegend=True
+        showlegend=False
     )
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+    # =========================
+    # LAYOUT
+    # =========================
+    left, right = st.columns([2, 1])
+
+    with left:
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    with right:
+
+        st.markdown("""
+        <div style='padding-top:30px;'>
+
+        <p style='color:gold; font-size:16px; font-weight:600;'>
+        ● On Track: {}
+        </p>
+
+        <p style='color:red; font-size:16px; font-weight:600;'>
+        ● Delayed: {}
+        </p>
+
+        <p style='color:limegreen; font-size:16px; font-weight:600;'>
+        ● Accelerated: {}
+        </p>
+
+        </div>
+        """.format(
+            on_track,
+            delayed,
+            accelerated
+        ), unsafe_allow_html=True)

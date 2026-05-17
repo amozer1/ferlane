@@ -9,17 +9,17 @@ def render_home(result):
     # =========================
     # TOP ROW
     # =========================
-    col1, col2 = st.columns([1, 1])
+    top1, top2 = st.columns([1, 1])
 
     # =========================
     # PIE CARD
     # =========================
-    with col1:
+    with top1:
 
         st.markdown("""
         <div class="dashboard-card">
             <div class="card-title">
-                📊 Programme Update
+                📊 Key Programme Updates
             </div>
         """, unsafe_allow_html=True)
 
@@ -30,22 +30,28 @@ def render_home(result):
     # =========================
     # SECOND CARD
     # =========================
-    with col2:
+    with top2:
 
         st.markdown("""
         <div class="dashboard-card">
             <div class="card-title">
-                📌 Key Programme Summary
+                📌 Programme Summary
             </div>
         """, unsafe_allow_html=True)
 
-        delayed = (result["Change Type"] == "DELAYED").sum()
-        early = (result["Change Type"] == "EARLY").sum()
-        unchanged = (result["Change Type"] == "UNCHANGED").sum()
+        st.markdown("""
+        <div style='font-size:15px; line-height:1.6;'>
 
-        st.metric("Delayed", delayed)
-        st.metric("Accelerated", early)
-        st.metric("On Track", unchanged)
+        • CL31 baseline compared against CL32 forecast dates.<br><br>
+
+        • Delayed activities indicate slippage against baseline.<br><br>
+
+        • Accelerated activities indicate earlier delivery.<br><br>
+
+        • Deliverables listed in original programme order.
+
+        </div>
+        """, unsafe_allow_html=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
