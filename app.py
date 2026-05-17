@@ -43,7 +43,7 @@ div[data-testid="stVerticalBlock"] > div {
     box-shadow: 0px 3px 10px rgba(0,0,0,0.25);
 }
 
-/* TITLE */
+/* CARD TITLE */
 .card-title {
     color: white;
     font-size: 18px;
@@ -63,6 +63,14 @@ div[data-testid="stMetric"] {
 [data-testid="stDataFrame"] {
     border-radius: 10px;
     overflow: hidden;
+}
+
+/* TABLE HEADERS ONLY */
+[data-testid="stDataFrame"] thead tr th {
+    background-color: #3a3a3a !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
 }
 
 /* TEXT */
@@ -106,14 +114,3 @@ result = build_deliverables(df31, df32)
 # RENDER DASHBOARD
 # =========================
 render_home(result, df32)
-
-/* =========================
-   DATAFRAME HEADERS ONLY
-========================= */
-
-[data-testid="stDataFrame"] thead tr th {
-    background-color: #3a3a3a !important;
-    color: #ffffff !important;
-    font-weight: 600 !important;
-    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
-}
