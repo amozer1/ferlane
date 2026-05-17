@@ -3,6 +3,7 @@ import streamlit as st
 from loader import load_cl31, load_cl32
 from deliverables import build_deliverables
 from layout.home_layout import render_home
+from layout.register_layout import render_register  # NEW
 
 # =========================
 # PAGE CONFIG
@@ -10,7 +11,7 @@ from layout.home_layout import render_home
 st.set_page_config(layout="wide")
 
 # =========================
-# GLOBAL STYLING
+# GLOBAL STYLING (UNCHANGED)
 # =========================
 st.markdown("""
 <style>
@@ -60,16 +61,12 @@ div[data-testid="stMetric"] {
 }
 
 /* STREAMLIT DATAFRAME HEADERS */
-
 [data-testid="stDataFrame"] div[role="columnheader"] {
     background-color: #3a3a3a !important;
     color: white !important;
     font-weight: 600 !important;
-}
     border-radius: 10px;
-    overflow: hidden;
 }
-
 
 /* TEXT */
 h1, h2, h3, h4, h5, h6, p, div {
@@ -81,7 +78,6 @@ h1 {
     font-size: 28px !important;
     margin-bottom: 10px !important;
 }
-
 
 /* REMOVE EXTRA SPACE */
 .element-container {
@@ -101,10 +97,21 @@ st.title("📊 CL31 vs CL32 Deliverable Dashboard")
 # =========================
 df31 = load_cl31()
 df32 = load_cl32()
-
 result = build_deliverables(df31, df32)
 
 # =========================
-# RENDER DASHBOARD
+# PAGE NAVIGATION (NEW)
 # =========================
-render_home(result, df32)
+page = st.sidebar.selectbox(
+    "Navigation",
+    ["Overview (CL32)", "Deliverable Register"]
+)
+
+# =========================
+# ROUTING
+# =========================
+if page == "Overview (CL32)":
+    render_home(result, df32)
+
+elif page == "Deliverable Register":
+    render_register(result)
