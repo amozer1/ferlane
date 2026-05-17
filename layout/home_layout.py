@@ -12,7 +12,7 @@ def render_home(result):
     col1, col2 = st.columns([1, 1])
 
     # =========================
-    # LEFT CARD (PIE)
+    # PIE CARD
     # =========================
     with col1:
 
@@ -28,18 +28,24 @@ def render_home(result):
         st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # RIGHT CARD (EMPTY FOR NOW)
+    # SECOND CARD
     # =========================
     with col2:
 
         st.markdown("""
         <div class="dashboard-card">
             <div class="card-title">
-                📌 Upcoming Dashboard Section
+                📌 Key Programme Summary
             </div>
         """, unsafe_allow_html=True)
 
-        st.info("Reserved for milestone tracker, float analysis or variance trends.")
+        delayed = (result["Change Type"] == "DELAYED").sum()
+        early = (result["Change Type"] == "EARLY").sum()
+        unchanged = (result["Change Type"] == "UNCHANGED").sum()
+
+        st.metric("Delayed", delayed)
+        st.metric("Accelerated", early)
+        st.metric("On Track", unchanged)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
