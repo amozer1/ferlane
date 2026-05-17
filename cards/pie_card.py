@@ -11,108 +11,50 @@ def render_pie(result):
     delayed = (result["Change Type"] == "DELAYED").sum()
     accelerated = (result["Change Type"] == "EARLY").sum()
 
-    labels = [
-        "On Track",
-        "Delayed",
-        "Accelerated"
-    ]
+    labels = ["On Track", "Delayed", "Accelerated"]
+    values = [on_track, delayed, accelerated]
 
-    values = [
-        on_track,
-        delayed,
-        accelerated
-    ]
-
-    colors = [
-        "gold",
-        "red",
-        "green"
-    ]
+    colors = ["gold", "red", "green"]
 
     # =========================
-    # CARD LAYOUT
+    # PIE CHART
     # =========================
-    left, right = st.columns([1.2, 1])
+    fig = go.Figure(
+        data=[
+            go.Pie(
+                labels=labels,
+                values=values,
+                marker=dict(colors=colors),
+                textinfo="percent",
+                sort=False
+            )
+        ]
+    )
 
-    # =========================
-    # PIE
-    # =========================
-    with left:
-
-        fig = go.Figure(
-            data=[
-                go.Pie(
-                    labels=labels,
-                    values=values,
-                    hole=0,
-                    marker=dict(colors=colors),
-                    textinfo="percent+value",
-                    textfont_size=14,
-                    insidetextorientation="radial",
-                    sort=False
-                )
-            ]
-        )
-
-        fig.update_layout(
-            autosize=False,
-            width=320,
-            height=250,
-            margin=dict(
-                l=0,
-                r=0,
-                t=0,
-                b=0
-            ),
-            paper_bgcolor="white",
-            plot_bgcolor="white",
-            showlegend=False
-        )
-
-        st.plotly_chart(
-            fig,
-            use_container_width=False,
-            config={
-                "displayModeBar": False
-            }
-        )
+    fig.update_layout(
+        height=220,
+        margin=dict(l=10, r=10, t=10, b=10),
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        showlegend=False
+    )
 
     # =========================
-    # LEGEND
+    # RENDER PIE
     # =========================
-    with right:
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        config={"displayModeBar": False}
+    )
 
-        st.markdown(f"""
-        <div style="
-            padding-top:45px;
-            padding-left:10px;
-        ">
+    # =========================
+    # LEGEND (SAFE INSIDE STREAMLIT)
+    # =========================
+    st.markdown("**Legend**")
 
-        <div style="
-            color:gold;
-            font-size:18px;
-            font-weight:700;
-            margin-bottom:18px;
-        ">
-        ● On Track: {on_track}
-        </div>
+    c1, c2, c3 = st.columns(3)
 
-        <div style="
-            color:red;
-            font-size:18px;
-            font-weight:700;
-            margin-bottom:18px;
-        ">
-        ● Delayed: {delayed}
-        </div>
-
-        <div style="
-            color:limegreen;
-            font-size:18px;
-            font-weight:700;
-        ">
-        ● Accelerated: {accelerated}
-        </div>
-
-        </div>
-        """, unsafe_allow_html=True)
+    c1.metric("🟡 On Track", on_track)
+    c2.metric("🔴 Delayed", delayed)
+    c3.metric("🟢 Accelerated", accelerated)

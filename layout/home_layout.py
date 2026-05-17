@@ -7,9 +7,9 @@ from cards.table_card import render_table
 def render_home(result):
 
     # =========================
-    # TOP ROW
+    # TOP ROW (2 CARDS)
     # =========================
-    top1, top2 = st.columns([1, 1])
+    top1, top2 = st.columns(2)
 
     # =========================
     # PIE CARD
@@ -17,7 +17,7 @@ def render_home(result):
     with top1:
 
         st.markdown("""
-        <div class="dashboard-card">
+        <div class="dashboard-card" style="height:360px;">
             <div class="card-title">
                 📊 Key Programme Updates
             </div>
@@ -28,27 +28,29 @@ def render_home(result):
         st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
-    # SECOND CARD
+    # SUMMARY CARD
     # =========================
     with top2:
 
         st.markdown("""
-        <div class="dashboard-card">
+        <div class="dashboard-card" style="height:360px;">
             <div class="card-title">
                 📌 Programme Summary
             </div>
         """, unsafe_allow_html=True)
 
         st.markdown("""
-        <div style='font-size:15px; line-height:1.6;'>
+        <div style="font-size:15px; line-height:1.6;">
 
         • CL31 baseline compared against CL32 forecast dates.<br><br>
 
-        • Delayed activities indicate slippage against baseline.<br><br>
+        • Delayed = activities pushed later than baseline.<br><br>
 
-        • Accelerated activities indicate earlier delivery.<br><br>
+        • Accelerated = activities brought forward.<br><br>
 
-        • Deliverables listed in original programme order.
+        • On Track = no change in programme dates.<br><br>
+
+        • Deliverables listed in programme order.
 
         </div>
         """, unsafe_allow_html=True)
