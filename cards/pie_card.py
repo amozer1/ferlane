@@ -56,32 +56,44 @@ def render_pie(df):
         "Accelerated": "#00C853"
     }
 
+    # =========================
+    # PIE CHART (IMPROVED VISIBILITY)
+    # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
             values=summary.values,
             sort=False,
-            textinfo="label+percent",
+
+            # 🔥 FIX 1: better readability inside slices
+            textinfo="label+value",
+            textfont=dict(color="#111111", size=13),
+
             marker=dict(colors=[colors[k] for k in summary.index]),
-            textfont=dict(color="white", size=13),
+
             pull=[0.03, 0.03, 0.03]
         )]
     )
 
     fig.update_layout(
-        margin=dict(l=0, r=0, t=0, b=0),
+        margin=dict(l=10, r=10, t=10, b=10),
         height=380,
-        paper_bgcolor="#140021",
-        plot_bgcolor="#140021",
-        showlegend=False
+
+        # keep chart transparent inside your dark card
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+
+        showlegend=False,
+
+        font=dict(color="white")  # keeps outer labels safe
     )
 
     # =========================
-    # SINGLE STREAMLIT CARD ONLY
+    # DASHBOARD CARD STYLING
     # =========================
     st.markdown("""
         <style>
-        .card {
+        .pie-card {
             background: #1e0b2e;
             border-radius: 18px;
             padding: 16px;
@@ -110,12 +122,12 @@ def render_pie(df):
         </style>
     """, unsafe_allow_html=True)
 
-    # 🔥 IMPORTANT: ONLY ONE CONTAINER BLOCK
-    col = st.container()
+    # =========================
+    # SINGLE CARD LAYOUT
+    # =========================
+    with st.container():
 
-    with col:
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown('<div class="pie-card">', unsafe_allow_html=True)
 
         col1, col2 = st.columns([2.3, 1])
 
