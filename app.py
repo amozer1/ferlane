@@ -59,14 +59,12 @@ div[data-testid="stMetric"] {
     text-align: center;
 }
 
-/* TABLE */
-[data-testid="stDataFrame"] thead th {
-    background-color: #2f2f2f !important;
-    color: #ffffff !important;
+/* STREAMLIT DATAFRAME HEADERS */
+
+[data-testid="stDataFrame"] div[role="columnheader"] {
+    background-color: #3a3a3a !important;
+    color: white !important;
     font-weight: 600 !important;
-    text-align: left !important;
-    padding: 10px 8px !important;
-    border-bottom: 1px solid rgba(255,255,255,0.10) !important;
 }
     border-radius: 10px;
     overflow: hidden;
