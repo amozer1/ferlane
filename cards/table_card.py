@@ -7,5 +7,5 @@ def render_table(result):
         result,
         use_container_width=True,
         hide_index=True,
-        height=300
+        height=350
     )
