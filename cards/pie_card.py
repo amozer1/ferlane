@@ -56,7 +56,7 @@ def render_pie(result):
 
         fig.update_layout(
             autosize=False,
-            width=250,
+            width=320,
             height=250,
             margin=dict(
                 l=0,
