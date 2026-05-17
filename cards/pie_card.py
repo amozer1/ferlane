@@ -3,6 +3,9 @@ import plotly.graph_objects as go
 import pandas as pd
 
 
+# =========================
+# DATA PREP
+# =========================
 def prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
@@ -24,6 +27,9 @@ def prepare(df):
     return df
 
 
+# =========================
+# STATUS LOGIC
+# =========================
 def classify(row, today):
 
     if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
@@ -38,6 +44,9 @@ def classify(row, today):
     return "On Track"
 
 
+# =========================
+# PIE CARD
+# =========================
 def render_pie(df):
 
     df = prepare(df)
@@ -56,6 +65,9 @@ def render_pie(df):
         "Accelerated": "#00C853"
     }
 
+    # =========================
+    # PIE CHART (CLEAN)
+    # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
@@ -70,14 +82,16 @@ def render_pie(df):
 
     fig.update_layout(
         margin=dict(l=0, r=0, t=0, b=0),
-        height=360,
+        height=380,
         paper_bgcolor="#140021",
         plot_bgcolor="#140021",
-        showlegend=False
+        showlegend=False,
+        autosize=True,
+        uniformtext_minsize=0
     )
 
     # =========================
-    # DARK CARD STYLE
+    # SINGLE CARD STYLING
     # =========================
     st.markdown(
         """
@@ -113,6 +127,9 @@ def render_pie(df):
         unsafe_allow_html=True
     )
 
+    # =========================
+    # SINGLE STREAMLIT CARD
+    # =========================
     with st.container():
 
         st.markdown('<div class="card">', unsafe_allow_html=True)
