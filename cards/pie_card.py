@@ -8,18 +8,36 @@ def render_pie(df):
 
     st.markdown("### Schedule Summary (CL32)")
 
-    # =========================
-    # CLEAN DATA
-    # =========================
     df = df.copy()
 
+    # =========================
+    # CLEAN COLUMN HEADERS
+    # =========================
+    df.columns = df.columns.astype(str).str.strip()
+
+    # =========================
+    # SAFETY CHECK
+    # =========================
+    required = ["Start", "Finish", "Activity % Complete"]
+
+    for col in required:
+        if col not in df.columns:
+            st.error(f"Missing column: {col}")
+            st.write(df.columns.tolist())
+            return
+
+    # =========================
+    # PARSE DATES
+    # =========================
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
 
-    # Convert % Complete safely
+    # =========================
+    # CLEAN % COMPLETE
+    # =========================
     def parse_pct(x):
         try:
-            return float(str(x).replace("%", ""))
+            return float(str(x).replace("%", "").strip())
         except:
             return 0
 
@@ -28,22 +46,23 @@ def render_pie(df):
     today = pd.to_datetime(datetime.today().date())
 
     # =========================
-    # STATUS CALCULATION
+    # CLASSIFICATION LOGIC
     # =========================
-    def classify(row):
+    def status(row):
+
         if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
             return "On Track"
 
-        total_days = (row["Finish"] - row["Start"]).days
-        elapsed = (today - row["Start"]).days
-
-        if total_days <= 0:
+        duration = (row["Finish"] - row["Start"]).days
+        if duration <= 0:
             return "On Track"
 
-        time_progress = max(min(elapsed / total_days, 1), 0)
-        actual_progress = row["Progress"] / 100
+        elapsed = (today - row["Start"]).days
+        expected = max(min(elapsed / duration, 1), 0)
 
-        diff = actual_progress - time_progress
+        actual = row["Progress"] / 100
+
+        diff = actual - expected
 
         if diff < -0.1:
             return "Delayed"
@@ -52,21 +71,20 @@ def render_pie(df):
         else:
             return "On Track"
 
-    df["Programme Status"] = df.apply(classify, axis=1)
+    df["Status"] = df.apply(status, axis=1)
 
     # =========================
-    # SUMMARY
+    # FORCE ALL 3 CATEGORIES
     # =========================
-    summary = df["Programme Status"].value_counts().reset_index()
+    summary = df["Status"].value_counts().reset_index()
     summary.columns = ["Status", "Count"]
 
-    # ensure all exist even if zero
     for s in ["On Track", "Delayed", "Accelerated"]:
         if s not in summary["Status"].values:
-            summary = pd.concat([
-                summary,
-                pd.DataFrame([{"Status": s, "Count": 0}])
-            ])
+            summary = pd.concat(
+                [summary, pd.DataFrame([[s, 0]], columns=["Status", "Count"])],
+                ignore_index=True
+            )
 
     # =========================
     # COLORS
@@ -78,7 +96,7 @@ def render_pie(df):
     }
 
     # =========================
-    # PIE (THICK PIE - NOT DONUT)
+    # PIE (FULL, THICK, NO DONUT)
     # =========================
     fig = px.pie(
         summary,
@@ -90,14 +108,16 @@ def render_pie(df):
 
     fig.update_traces(
         textinfo="label+value+percent",
-        hole=0  # IMPORTANT → solid pie
+        pull=[0.02, 0.02, 0.02],
+        marker=dict(line=dict(color="white", width=2))
     )
 
     fig.update_layout(
         paper_bgcolor="white",
         plot_bgcolor="white",
-        margin=dict(t=10, b=10, l=10, r=10),
-        height=380
+        margin=dict(l=10, r=10, t=10, b=10),
+        height=380,
+        showlegend=True
     )
 
     st.plotly_chart(fig, use_container_width=True)
