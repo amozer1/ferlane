@@ -57,7 +57,7 @@ def render_pie(df):
     }
 
     # =========================
-    # PIE CHART (IMPROVED VISIBILITY)
+    # PIE CHART (BLACK TEXT FIX)
     # =========================
     fig = go.Figure(
         data=[go.Pie(
@@ -65,12 +65,11 @@ def render_pie(df):
             values=summary.values,
             sort=False,
 
-            # 🔥 FIX 1: better readability inside slices
+            # 🔥 FIX: black text inside chart (your request)
             textinfo="label+value",
-            textfont=dict(color="#111111", size=13),
+            textfont=dict(color="black", size=13),
 
             marker=dict(colors=[colors[k] for k in summary.index]),
-
             pull=[0.03, 0.03, 0.03]
         )]
     )
@@ -79,31 +78,30 @@ def render_pie(df):
         margin=dict(l=10, r=10, t=10, b=10),
         height=380,
 
-        # keep chart transparent inside your dark card
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
 
         showlegend=False,
 
-        font=dict(color="white")  # keeps outer labels safe
+        font=dict(color="black")  # 🔥 ensures all labels default to black
     )
 
     # =========================
-    # DASHBOARD CARD STYLING
+    # CARD STYLE
     # =========================
     st.markdown("""
         <style>
         .pie-card {
-            background: #1e0b2e;
+            background: #ffffff;
             border-radius: 18px;
             padding: 16px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
         }
 
         .item {
             font-size: 15px;
             margin-bottom: 14px;
-            color: white;
+            color: black;
             display: flex;
             align-items: center;
         }
@@ -118,12 +116,13 @@ def render_pie(df):
         .value {
             font-weight: 700;
             margin-left: 6px;
+            color: black;
         }
         </style>
     """, unsafe_allow_html=True)
 
     # =========================
-    # SINGLE CARD LAYOUT
+    # RENDER CARD
     # =========================
     with st.container():
 
