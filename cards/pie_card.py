@@ -3,10 +3,11 @@ import plotly.graph_objects as go
 import pandas as pd
 
 
+# =========================
+# PREP DATA
+# =========================
 def prepare(df):
     df = df.copy()
-
-    df.columns = df.columns.str.strip()
 
     df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
     df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
@@ -24,8 +25,10 @@ def prepare(df):
     return df
 
 
+# =========================
+# CLASSIFICATION LOGIC
+# =========================
 def classify(row, today):
-    start = row["Start"]
     finish = row["Finish"]
     pct = row["Activity % Complete"]
 
@@ -44,6 +47,9 @@ def classify(row, today):
     return "On Track"
 
 
+# =========================
+# PIE RENDER
+# =========================
 def render_pie(df):
     df = prepare(df)
     today = pd.Timestamp.today()
@@ -70,23 +76,51 @@ def render_pie(df):
             values=values,
             marker=dict(colors=colors),
             textinfo="label+percent",
-            sort=False,
-            showlegend=False   # 🔥 REMOVE INTERNAL LEGEND
+            hole=0,
+            sort=False
         )]
     )
 
+    # =========================
+    # IMPORTANT FIX (FIT INSIDE CARD)
+    # =========================
     fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(t=10, b=10, l=10, r=10),  # 🔥 tighter so it stays inside card
+        margin=dict(t=10, b=10, l=10, r=10),
         height=300,
-        showlegend=False   # 🔥 REMOVE ANY LEGEND COMPLETELY
+        showlegend=False,   # remove Plotly legend completely
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
     )
 
-    # 🔥 SINGLE COLUMN = keeps pie inside card (prevents overflow)
-    with st.container():
-        st.plotly_chart(
-            fig,
-            use_container_width=True,
-            config={"displayModeBar": False}
-        )
+    # Make pie stay inside canvas
+    fig.update_traces(
+        textposition="inside",
+        insidetextorientation="radial"
+    )
+
+    # =========================
+    # CARD WRAPPER
+    # =========================
+    st.markdown("""
+    <div class="dashboard-card">
+        <div class="card-title">Schedule Summary</div>
+    """, unsafe_allow_html=True)
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        config={"displayModeBar": False}
+    )
+
+    # =========================
+    # CUSTOM LEGEND (ONLY ONE)
+    # =========================
+    st.markdown("""
+    <div style="display:flex; justify-content:space-around; margin-top:8px; font-size:14px;">
+        <div>🟡 On Track</div>
+        <div>🔴 Delayed</div>
+        <div>🟢 Accelerated</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
