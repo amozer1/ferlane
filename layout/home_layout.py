@@ -7,12 +7,12 @@ from cards.table_card import render_table
 
 
 # =========================
-# PAGE 1 — OVERVIEW
+# FULL DASHBOARD (SCROLL VIEW)
 # =========================
-def render_home(result, df32):
+def render_dashboard(result, df32):
 
     # =========================
-    # PIE CHART (FULL WIDTH)
+    # SECTION 1 — SUMMARY
     # =========================
     st.markdown("""
     <div class="dashboard-card">
@@ -25,7 +25,7 @@ def render_home(result, df32):
 
 
     # =========================
-    # SIDE BY SIDE TABLES
+    # SECTION 2 — RISK + FORECAST
     # =========================
     col1, col2 = st.columns(2)
 
@@ -51,12 +51,9 @@ def render_home(result, df32):
         st.markdown("</div>", unsafe_allow_html=True)
 
 
-
-# =========================
-# PAGE 2 — REGISTER
-# =========================
-def render_register(result):
-
+    # =========================
+    # SECTION 3 — FULL REGISTER
+    # =========================
     st.markdown("""
     <div class="dashboard-card">
         <div class="card-title">📋 CL31 vs CL32 Deliverable Register</div>

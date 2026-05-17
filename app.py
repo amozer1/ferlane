@@ -2,7 +2,7 @@ import streamlit as st
 
 from loader import load_cl31, load_cl32
 from deliverables import build_deliverables
-from layout.home_layout import render_home, render_register
+from layout.home_layout import render_dashboard
 
 
 # =========================
@@ -25,15 +25,6 @@ result = build_deliverables(df31, df32)
 
 
 # =========================
-# PAGE ROUTING ONLY
+# SINGLE SCROLL DASHBOARD
 # =========================
-page = st.sidebar.selectbox(
-    "Navigation",
-    ["Overview (CL32)", "Deliverable Register"]
-)
-
-if page == "Overview (CL32)":
-    render_home(result, df32)
-
-elif page == "Deliverable Register":
-    render_register(result)
+render_dashboard(result, df32)
