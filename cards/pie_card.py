@@ -41,7 +41,7 @@ def render_pie(result):
     )
 
     fig.update_layout(
-        height=190,
+        height=250,
         margin=dict(t=5, b=5, l=5, r=5),
         paper_bgcolor="white",
         plot_bgcolor="white",
