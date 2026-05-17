@@ -80,7 +80,7 @@ def render_pie(df):
     )
 
     # =========================
-    # CARD CONTAINER
+    # CARD STYLE
     # =========================
     st.markdown(
         """
@@ -90,13 +90,6 @@ def render_pie(df):
             padding: 18px;
             border-radius: 18px;
             box-shadow: 0 4px 14px rgba(0,0,0,0.12);
-            margin-bottom: 10px;
-        }
-
-        .pie-title {
-            color: black;
-            font-size: 22px;
-            font-weight: 700;
             margin-bottom: 10px;
         }
         </style>
