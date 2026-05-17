@@ -4,33 +4,76 @@ import plotly.graph_objects as go
 
 def render_pie(result):
 
+    # =========================
+    # COUNTS
+    # =========================
     on_track = (result["Change Type"] == "UNCHANGED").sum()
     delayed = (result["Change Type"] == "DELAYED").sum()
     accelerated = (result["Change Type"] == "EARLY").sum()
 
-    fig = go.Figure(
-        data=[
-            go.Pie(
-                labels=["On Track", "Delayed", "Accelerated"],
-                values=[on_track, delayed, accelerated],
-                marker=dict(colors=["gold", "red", "green"]),
-                textinfo="percent",
-                sort=False
-            )
-        ]
-    )
+    # =========================
+    # FILTER OUT ZERO VALUES
+    # =========================
+    labels = []
+    values = []
+    colors = []
 
-    fig.update_layout(
-        margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor="white",
-        plot_bgcolor="white",
-        showlegend=False,
-        height=260
-    )
+    if on_track > 0:
+        labels.append("On Track")
+        values.append(on_track)
+        colors.append("gold")
 
-    st.plotly_chart(fig, use_container_width=True)
+    if delayed > 0:
+        labels.append("Delayed")
+        values.append(delayed)
+        colors.append("red")
 
-    st.markdown("### Legend")
-    st.write(f"🟡 On Track: {on_track}")
-    st.write(f"🔴 Delayed: {delayed}")
-    st.write(f"🟢 Accelerated: {accelerated}")
+    if accelerated > 0:
+        labels.append("Accelerated")
+        values.append(accelerated)
+        colors.append("green")
+
+    # =========================
+    # PIE + LEGEND LAYOUT
+    # =========================
+    col1, col2 = st.columns([1.2, 1])
+
+    with col1:
+
+        fig = go.Figure(
+            data=[
+                go.Pie(
+                    labels=labels,
+                    values=values,
+                    marker=dict(colors=colors),
+
+                    # SHOW VALUE + %
+                    textinfo="value+percent",
+                    textfont_size=14,
+                    sort=False
+                )
+            ]
+        )
+
+        fig.update_layout(
+            width=320,
+            height=320,
+            margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor="white",
+            showlegend=False
+        )
+
+        st.plotly_chart(fig, use_container_width=False)
+
+    with col2:
+
+        st.markdown("### Legend")
+
+        if on_track > 0:
+            st.markdown(f"🟡 **On Track:** {on_track}")
+
+        if delayed > 0:
+            st.markdown(f"🔴 **Delayed:** {delayed}")
+
+        if accelerated > 0:
+            st.markdown(f"🟢 **Accelerated:** {accelerated}")
