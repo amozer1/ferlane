@@ -1,31 +1,47 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from datetime import datetime
 
 
+# =========================
+# CLEAN + NORMALISE DATA
+# =========================
 def prepare(df):
     df = df.copy()
 
-    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+    # clean column names just in case
+    df.columns = df.columns.astype(str).str.strip()
 
-    # remove % sign safely
-    df["Activity % Complete"] = (
-        df["Activity % Complete"]
-        .astype(str)
-        .str.replace("%", "", regex=False)
-    )
-    df["Activity % Complete"] = pd.to_numeric(df["Activity % Complete"], errors="coerce").fillna(0)
+    # safe datetime conversion
+    if "Start" in df.columns:
+        df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
+
+    if "Finish" in df.columns:
+        df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+
+    # clean % complete
+    if "Activity % Complete" in df.columns:
+        df["Activity % Complete"] = (
+            df["Activity % Complete"]
+            .astype(str)
+            .str.replace("%", "", regex=False)
+        )
+        df["Activity % Complete"] = pd.to_numeric(df["Activity % Complete"], errors="coerce").fillna(0)
+    else:
+        df["Activity % Complete"] = 0
 
     return df
 
 
+# =========================
+# CLASSIFICATION LOGIC
+# =========================
 def classify(row, today):
-    start = row["Start"]
-    finish = row["Finish"]
-    pct = row["Activity % Complete"]
+    start = row.get("Start")
+    finish = row.get("Finish")
+    pct = row.get("Activity % Complete", 0)
 
+    # missing dates → default safe category
     if pd.isna(start) or pd.isna(finish):
         return "On Track"
 
@@ -41,6 +57,9 @@ def classify(row, today):
     return "On Track"
 
 
+# =========================
+# PIE RENDER
+# =========================
 def render_pie(df):
     df = prepare(df)
     today = pd.Timestamp.today()
@@ -67,17 +86,18 @@ def render_pie(df):
             values=values,
             marker=dict(colors=colors),
             textinfo="label+percent",
+            sort=False,
             hole=0,
-            sort=False
+            showlegend=False   # ✅ REMOVE PLOTLY LEGEND COMPLETELY
         )]
     )
 
     fig.update_layout(
-        title="Schedule Summary (CL32)",
         paper_bgcolor="white",
         plot_bgcolor="white",
-        margin=dict(t=30, b=10, l=10, r=10),
-        height=320
+        margin=dict(t=5, b=5, l=5, r=5),
+        height=320,
+        showlegend=False  # ✅ extra safety
     )
 
     col1, col2 = st.columns([1.3, 1])
@@ -86,7 +106,7 @@ def render_pie(df):
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.markdown("### Legend")
+        st.markdown("### Status Overview")
 
         st.markdown(f"🟡 On Track: {summary['On Track']}")
         st.markdown(f"🔴 Delayed: {summary['Delayed']}")
