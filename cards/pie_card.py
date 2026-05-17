@@ -1,40 +1,56 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
+from datetime import datetime
 
 
-def classify(df):
+def prepare(df):
     df = df.copy()
 
+    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
+    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+
+    # remove % sign safely
     df["Activity % Complete"] = (
         df["Activity % Complete"]
         .astype(str)
         .str.replace("%", "", regex=False)
     )
-
     df["Activity % Complete"] = pd.to_numeric(df["Activity % Complete"], errors="coerce").fillna(0)
 
-    def status(x):
-        if x >= 100:
-            return "On Track"
-        elif x >= 50:
-            return "Delayed"
-        else:
-            return "Accelerated"
+    return df
 
-    df["Status"] = df["Activity % Complete"].apply(status)
+
+def classify(row, today):
+    start = row["Start"]
+    finish = row["Finish"]
+    pct = row["Activity % Complete"]
+
+    if pd.isna(start) or pd.isna(finish):
+        return "On Track"
+
+    # 🔴 DELAYED
+    if finish < today and pct < 100:
+        return "Delayed"
+
+    # 🟢 ACCELERATED
+    if finish > today and pct > 0:
+        return "Accelerated"
+
+    # 🟡 ON TRACK
+    return "On Track"
+
+
+def render_pie(df):
+    df = prepare(df)
+    today = pd.Timestamp.today()
+
+    df["Status"] = df.apply(lambda r: classify(r, today), axis=1)
 
     summary = df["Status"].value_counts().reindex(
         ["On Track", "Delayed", "Accelerated"],
         fill_value=0
     )
-
-    return summary
-
-
-def render_pie(df):
-
-    summary = classify(df)
 
     labels = ["On Track", "Delayed", "Accelerated"]
     values = [
@@ -45,46 +61,26 @@ def render_pie(df):
 
     colors = ["#FFD700", "#FF4B4B", "#00C853"]
 
-    total = sum(values)
-
-    # avoid empty crash
-    if total == 0:
-        values = [1, 0, 0]
-        total = 1
-
     fig = go.Figure(
-        data=[
-            go.Pie(
-                labels=labels,
-                values=values,
-                marker=dict(colors=colors),
-                textinfo="label+percent",
-                hole=0,  # full pie
-                sort=False,
-                hoverinfo="label+value"
-            )
-        ]
+        data=[go.Pie(
+            labels=labels,
+            values=values,
+            marker=dict(colors=colors),
+            textinfo="label+percent",
+            hole=0,
+            sort=False
+        )]
     )
 
-    # central label (BIG UPGRADE LOOK)
     fig.update_layout(
-        annotations=[
-            dict(
-                text=f"Total<br><b>{total}</b>",
-                x=0.5,
-                y=0.5,
-                font_size=18,
-                showarrow=False
-            )
-        ],
+        title="Schedule Summary (CL32)",
         paper_bgcolor="white",
         plot_bgcolor="white",
-        margin=dict(t=10, b=10, l=10, r=10),
+        margin=dict(t=30, b=10, l=10, r=10),
         height=320
     )
 
-    # layout split: pie + legend
-    col1, col2 = st.columns([1.2, 1])
+    col1, col2 = st.columns([1.3, 1])
 
     with col1:
         st.plotly_chart(fig, use_container_width=True)
@@ -92,6 +88,6 @@ def render_pie(df):
     with col2:
         st.markdown("### Legend")
 
-        st.markdown(f"🟡 On Track: **{summary['On Track']}**")
-        st.markdown(f"🔴 Delayed: **{summary['Delayed']}**")
-        st.markdown(f"🟢 Accelerated: **{summary['Accelerated']}**")
+        st.markdown(f"🟡 On Track: {summary['On Track']}")
+        st.markdown(f"🔴 Delayed: {summary['Delayed']}")
+        st.markdown(f"🟢 Accelerated: {summary['Accelerated']}")
