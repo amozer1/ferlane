@@ -15,10 +15,8 @@ def _prepare(df):
         .astype(str)
         .str.replace("%", "", regex=False)
     )
-    df["Activity % Complete"] = pd.to_numeric(
-        df["Activity % Complete"],
-        errors="coerce"
-    ).fillna(0)
+
+    df["Activity % Complete"] = pd.to_numeric(df["Activity % Complete"], errors="coerce").fillna(0)
 
     return df
 
@@ -40,26 +38,19 @@ def _get_delayed(df):
 def render_delayed_table(df):
     delayed = _get_delayed(df)
 
-    st.markdown("### 🔴 Delayed Deliverables (CL32)")
-
     if delayed.empty:
         st.success("No delayed activities 🎯")
         return
 
-    view = delayed[[
-        "Activity ID",
-        "Activity Name",
-        "Start",
-        "Finish",
-        "Delay (Days)",
-        "Comments"
-    ]].copy()
-
-    view["Start"] = view["Start"].dt.strftime("%d-%b-%Y")
-    view["Finish"] = view["Finish"].dt.strftime("%d-%b-%Y")
-
     st.dataframe(
-        view,
+        delayed[[
+            "Activity ID",
+            "Activity Name",
+            "Start",
+            "Finish",
+            "Delay (Days)",
+            "Comments"
+        ]],
         use_container_width=True,
         hide_index=True
     )
