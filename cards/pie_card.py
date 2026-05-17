@@ -56,6 +56,9 @@ def render_pie(df):
         "Accelerated": "#00C853"
     }
 
+    # =========================
+    # PIE (clean, no top gap)
+    # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
@@ -63,8 +66,9 @@ def render_pie(df):
             sort=False,
             textinfo="label+percent",
             marker=dict(colors=[colors[k] for k in summary.index]),
-            textfont=dict(color="black", size=14),
-            pull=[0.02, 0.02, 0.02]
+            textfont=dict(color="black", size=13),
+            pull=[0.03, 0.03, 0.03],
+            hole=0
         )]
     )
 
@@ -77,27 +81,26 @@ def render_pie(df):
     )
 
     # =========================
-    # PURE STREAMLIT CARD FIX
+    # SINGLE STREAMLIT CARD
     # =========================
-
     st.markdown(
         """
         <style>
-        .block-card {
+        .card {
             background: white;
             border-radius: 18px;
-            padding: 16px;
+            padding: 18px;
             box-shadow: 0 4px 14px rgba(0,0,0,0.10);
         }
 
-        .kpi-title {
+        .title {
             font-size: 18px;
             font-weight: 700;
             color: black;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
-        .legend-item {
+        .item {
             font-size: 15px;
             margin-bottom: 14px;
             color: black;
@@ -111,47 +114,48 @@ def render_pie(df):
             border-radius: 50%;
             margin-right: 10px;
         }
+
+        .value {
+            font-weight: 700;
+            margin-left: 6px;
+        }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    # TRUE CARD STRUCTURE (NO HTML WRAPPER)
+    # ONE CARD ONLY
     with st.container():
 
-        col_card = st.columns(1)[0]
+        st.markdown('<div class="card">', unsafe_allow_html=True)
 
-        with col_card:
+        st.markdown('<div class="title">Programme Status Overview</div>', unsafe_allow_html=True)
 
-            st.markdown('<div class="block-card">', unsafe_allow_html=True)
+        col1, col2 = st.columns([2.2, 1])
 
-            st.markdown('<div class="kpi-title">Programme Status</div>', unsafe_allow_html=True)
+        with col1:
+            st.plotly_chart(
+                fig,
+                use_container_width=True,
+                config={"displayModeBar": False}
+            )
 
-            col1, col2 = st.columns([2.2, 1])
+        with col2:
+            st.markdown(f"""
+                <div class="item">
+                    <div class="dot" style="background:#FFD700;"></div>
+                    On Track <span class="value">{summary['On Track']}</span>
+                </div>
 
-            with col1:
-                st.plotly_chart(
-                    fig,
-                    use_container_width=True,
-                    config={"displayModeBar": False}
-                )
+                <div class="item">
+                    <div class="dot" style="background:#FF3B30;"></div>
+                    Delayed <span class="value">{summary['Delayed']}</span>
+                </div>
 
-            with col2:
-                st.markdown(f"""
-                    <div class="legend-item">
-                        <div class="dot" style="background:#FFD700;"></div>
-                        On Track: {summary['On Track']}
-                    </div>
+                <div class="item">
+                    <div class="dot" style="background:#00C853;"></div>
+                    Accelerated <span class="value">{summary['Accelerated']}</span>
+                </div>
+            """, unsafe_allow_html=True)
 
-                    <div class="legend-item">
-                        <div class="dot" style="background:#FF3B30;"></div>
-                        Delayed: {summary['Delayed']}
-                    </div>
-
-                    <div class="legend-item">
-                        <div class="dot" style="background:#00C853;"></div>
-                        Accelerated: {summary['Accelerated']}
-                    </div>
-                """, unsafe_allow_html=True)
-
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
