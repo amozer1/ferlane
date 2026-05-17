@@ -1,115 +1,97 @@
 import streamlit as st
-import plotly.express as px
+import plotly.graph_objects as go
 import pandas as pd
-from datetime import datetime
+
+
+def classify(df):
+    df = df.copy()
+
+    df["Activity % Complete"] = (
+        df["Activity % Complete"]
+        .astype(str)
+        .str.replace("%", "", regex=False)
+    )
+
+    df["Activity % Complete"] = pd.to_numeric(df["Activity % Complete"], errors="coerce").fillna(0)
+
+    def status(x):
+        if x >= 100:
+            return "On Track"
+        elif x >= 50:
+            return "Delayed"
+        else:
+            return "Accelerated"
+
+    df["Status"] = df["Activity % Complete"].apply(status)
+
+    summary = df["Status"].value_counts().reindex(
+        ["On Track", "Delayed", "Accelerated"],
+        fill_value=0
+    )
+
+    return summary
 
 
 def render_pie(df):
 
-    df = df.copy()
+    summary = classify(df)
 
-    # clean column names
-    df.columns = df.columns.astype(str).str.strip()
+    labels = ["On Track", "Delayed", "Accelerated"]
+    values = [
+        summary["On Track"],
+        summary["Delayed"],
+        summary["Accelerated"]
+    ]
 
-    # required CL32 columns only
-    required_cols = ["Start", "Finish", "Activity % Complete"]
+    colors = ["#FFD700", "#FF4B4B", "#00C853"]
 
-    for col in required_cols:
-        if col not in df.columns:
-            st.error(f"Missing column in CL32: {col}")
-            st.write(df.columns.tolist())
-            return
+    total = sum(values)
 
-    # parse dates
-    df["Start"] = pd.to_datetime(df["Start"], errors="coerce")
-    df["Finish"] = pd.to_datetime(df["Finish"], errors="coerce")
+    # avoid empty crash
+    if total == 0:
+        values = [1, 0, 0]
+        total = 1
 
-    # convert % complete safely
-    def to_pct(x):
-        try:
-            return float(str(x).replace("%", "").strip())
-        except:
-            return 0
-
-    df["progress"] = df["Activity % Complete"].apply(to_pct)
-
-    today = pd.to_datetime(datetime.today().date())
-
-    # =========================
-    # STATUS LOGIC
-    # =========================
-    def get_status(row):
-
-        if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
-            return "On Track"
-
-        duration = (row["Finish"] - row["Start"]).days
-        if duration <= 0:
-            return "On Track"
-
-        elapsed = (today - row["Start"]).days
-        expected = max(min(elapsed / duration, 1), 0)
-
-        actual = row["progress"] / 100
-
-        diff = actual - expected
-
-        if diff < -0.1:
-            return "Delayed"
-        elif diff > 0.1:
-            return "Accelerated"
-        else:
-            return "On Track"
-
-    df["Status"] = df.apply(get_status, axis=1)
-
-    # =========================
-    # SUMMARY
-    # =========================
-    summary = df["Status"].value_counts().reset_index()
-    summary.columns = ["Status", "Count"]
-
-    # ensure all categories exist
-    for s in ["On Track", "Delayed", "Accelerated"]:
-        if s not in summary["Status"].values:
-            summary = pd.concat(
-                [summary, pd.DataFrame([[s, 0]], columns=["Status", "Count"])],
-                ignore_index=True
+    fig = go.Figure(
+        data=[
+            go.Pie(
+                labels=labels,
+                values=values,
+                marker=dict(colors=colors),
+                textinfo="label+percent",
+                hole=0,  # full pie
+                sort=False,
+                hoverinfo="label+value"
             )
-
-    # remove zeros from pie (clean view)
-    summary = summary[summary["Count"] > 0]
-
-    if summary.empty:
-        summary = pd.DataFrame({"Status": ["On Track"], "Count": [1]})
-
-    # =========================
-    # PIE CHART (THICK PIE, NO DONUT)
-    # =========================
-    fig = px.pie(
-        summary,
-        names="Status",
-        values="Count",
-        color="Status",
-        color_discrete_map={
-            "On Track": "gold",
-            "Delayed": "red",
-            "Accelerated": "green"
-        }
+        ]
     )
 
-    fig.update_traces(
-        textinfo="label+percent",
-        hole=0,  # FULL PIE (NOT DONUT)
-        pull=[0.02] * len(summary)
-    )
-
+    # central label (BIG UPGRADE LOOK)
     fig.update_layout(
+        annotations=[
+            dict(
+                text=f"Total<br><b>{total}</b>",
+                x=0.5,
+                y=0.5,
+                font_size=18,
+                showarrow=False
+            )
+        ],
         paper_bgcolor="white",
         plot_bgcolor="white",
-        margin=dict(l=5, r=5, t=5, b=5),
-        height=320,
-        showlegend=True
+        margin=dict(t=10, b=10, l=10, r=10),
+        height=320
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    # layout split: pie + legend
+    col1, col2 = st.columns([1.2, 1])
+
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.markdown("### Legend")
+
+        st.markdown(f"🟡 On Track: **{summary['On Track']}**")
+        st.markdown(f"🔴 Delayed: **{summary['Delayed']}**")
+        st.markdown(f"🟢 Accelerated: **{summary['Accelerated']}**")
