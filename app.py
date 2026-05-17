@@ -60,7 +60,14 @@ div[data-testid="stMetric"] {
 }
 
 /* TABLE */
-[data-testid="stDataFrame"] {
+[data-testid="stDataFrame"] thead th {
+    background-color: #2f2f2f !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    text-align: left !important;
+    padding: 10px 8px !important;
+    border-bottom: 1px solid rgba(255,255,255,0.10) !important;
+}
     border-radius: 10px;
     overflow: hidden;
 }
