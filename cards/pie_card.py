@@ -1,6 +1,5 @@
 import streamlit as st
-import plotly.express as px
-import pandas as pd
+import plotly.graph_objects as go
 
 
 def render_pie(result):
@@ -12,72 +11,81 @@ def render_pie(result):
     delayed = (result["Change Type"] == "DELAYED").sum()
     accelerated = (result["Change Type"] == "EARLY").sum()
 
-    summary = pd.DataFrame({
-        "Status": ["On Track", "Delayed", "Accelerated"],
-        "Count": [on_track, delayed, accelerated]
-    })
+    # =========================
+    # LAYOUT
+    # =========================
+    left, right = st.columns([1.3, 1])
 
     # =========================
     # PIE
     # =========================
-    fig = px.pie(
-        summary,
-        names="Status",
-        values="Count",
-        color="Status",
-        color_discrete_map={
-            "On Track": "gold",
-            "Delayed": "red",
-            "Accelerated": "green"
-        }
-    )
-
-    # =========================
-    # MAKE PIE THICK + FIT CARD
-    # =========================
-    fig.update_traces(
-        textinfo="none",
-        sort=False
-    )
-
-    fig.update_layout(
-        height=220,
-        margin=dict(t=5, b=5, l=5, r=5),
-        paper_bgcolor="white",
-        plot_bgcolor="white",
-        showlegend=False
-    )
-    # =========================
-    # LAYOUT
-    # =========================
-    left, right = st.columns([2, 1])
-
     with left:
-        st.plotly_chart(
-            fig,
-            use_container_width=True
+
+        fig = go.Figure(
+            data=[
+                go.Pie(
+                    labels=[
+                        "On Track",
+                        "Delayed",
+                        "Accelerated"
+                    ],
+                    values=[
+                        on_track,
+                        delayed,
+                        accelerated
+                    ],
+                    marker=dict(
+                        colors=[
+                            "gold",
+                            "red",
+                            "green"
+                        ]
+                    ),
+                    textinfo="none",
+                    sort=False
+                )
+            ]
         )
 
+        fig.update_layout(
+            autosize=False,
+            width=260,
+            height=260,
+            margin=dict(
+                l=10,
+                r=10,
+                t=10,
+                b=10
+            ),
+            paper_bgcolor="white",
+            plot_bgcolor="white",
+            showlegend=False
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=False
+        )
+
+    # =========================
+    # LEGEND
+    # =========================
     with right:
 
-        st.markdown("""
-        <div style='padding-top:30px;'>
+        st.markdown(f"""
+        <div style='padding-top:55px;'>
 
-        <p style='color:gold; font-size:16px; font-weight:600;'>
-        ● On Track: {}
+        <p style='color:gold; font-size:18px; font-weight:700;'>
+        ● On Track: {on_track}
         </p>
 
-        <p style='color:red; font-size:16px; font-weight:600;'>
-        ● Delayed: {}
+        <p style='color:red; font-size:18px; font-weight:700;'>
+        ● Delayed: {delayed}
         </p>
 
-        <p style='color:limegreen; font-size:16px; font-weight:600;'>
-        ● Accelerated: {}
+        <p style='color:limegreen; font-size:18px; font-weight:700;'>
+        ● Accelerated: {accelerated}
         </p>
 
         </div>
-        """.format(
-            on_track,
-            delayed,
-            accelerated
-        ), unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
