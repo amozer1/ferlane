@@ -3,9 +3,6 @@ import plotly.graph_objects as go
 import pandas as pd
 
 
-# =========================
-# DATA PREP
-# =========================
 def prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
@@ -27,9 +24,6 @@ def prepare(df):
     return df
 
 
-# =========================
-# STATUS LOGIC
-# =========================
 def classify(row, today):
 
     if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
@@ -44,9 +38,6 @@ def classify(row, today):
     return "On Track"
 
 
-# =========================
-# PIE CARD
-# =========================
 def render_pie(df):
 
     df = prepare(df)
@@ -65,9 +56,6 @@ def render_pie(df):
         "Accelerated": "#00C853"
     }
 
-    # =========================
-    # PIE CHART (CLEAN)
-    # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
@@ -85,21 +73,18 @@ def render_pie(df):
         height=380,
         paper_bgcolor="#140021",
         plot_bgcolor="#140021",
-        showlegend=False,
-        autosize=True,
-        uniformtext_minsize=0
+        showlegend=False
     )
 
     # =========================
-    # SINGLE CARD STYLING
+    # SINGLE STREAMLIT CARD ONLY
     # =========================
-    st.markdown(
-        """
+    st.markdown("""
         <style>
         .card {
             background: #1e0b2e;
             border-radius: 18px;
-            padding: 18px;
+            padding: 16px;
             box-shadow: 0 4px 14px rgba(0,0,0,0.35);
         }
 
@@ -123,18 +108,16 @@ def render_pie(df):
             margin-left: 6px;
         }
         </style>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
 
-    # =========================
-    # SINGLE STREAMLIT CARD
-    # =========================
-    with st.container():
+    # 🔥 IMPORTANT: ONLY ONE CONTAINER BLOCK
+    col = st.container()
+
+    with col:
 
         st.markdown('<div class="card">', unsafe_allow_html=True)
 
-        col1, col2 = st.columns([2.2, 1])
+        col1, col2 = st.columns([2.3, 1])
 
         with col1:
             st.plotly_chart(
