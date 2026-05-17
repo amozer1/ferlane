@@ -9,10 +9,6 @@ from layout.home_layout import render_dashboard
 # =========================
 st.set_page_config(layout="wide")
 
-# =========================
-# TITLE
-# =========================
-st.title("📊 CL31 vs CL32 Deliverable Dashboard")
 
 # =========================
 # LOAD DATA
