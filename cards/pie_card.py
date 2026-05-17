@@ -109,11 +109,6 @@ def render_pie(df):
         unsafe_allow_html=True
     )
 
-    st.markdown(
-        '<div class="pie-title">Programme Status Overview</div>',
-        unsafe_allow_html=True
-    )
-
     # =========================
     # PIE CHART
     # =========================
