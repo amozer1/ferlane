@@ -3,9 +3,6 @@ import plotly.graph_objects as go
 import pandas as pd
 
 
-# =========================
-# DATA PREP
-# =========================
 def prepare(df):
     df = df.copy()
     df.columns = df.columns.astype(str).str.strip()
@@ -27,9 +24,6 @@ def prepare(df):
     return df
 
 
-# =========================
-# CLASSIFY
-# =========================
 def classify(row, today):
 
     if pd.isna(row["Start"]) or pd.isna(row["Finish"]):
@@ -44,9 +38,6 @@ def classify(row, today):
     return "On Track"
 
 
-# =========================
-# MAIN RENDER
-# =========================
 def render_pie(df):
 
     df = prepare(df)
@@ -65,9 +56,6 @@ def render_pie(df):
         "Accelerated": "#00C853"
     }
 
-    # =========================
-    # PIE FIGURE
-    # =========================
     fig = go.Figure(
         data=[go.Pie(
             labels=summary.index,
@@ -76,91 +64,90 @@ def render_pie(df):
             textinfo="label+percent",
             marker=dict(colors=[colors[k] for k in summary.index]),
             textfont=dict(color="black", size=14),
-            hole=0,
             pull=[0.02, 0.02, 0.02]
         )]
     )
 
     fig.update_layout(
         margin=dict(l=0, r=0, t=0, b=0),
-        height=380,
+        height=360,
         paper_bgcolor="white",
         plot_bgcolor="white",
-        showlegend=False  # IMPORTANT (we build our own side legend)
+        showlegend=False
     )
 
     # =========================
-    # CARD LAYOUT (TALL + SIDE BY SIDE)
+    # SINGLE CARD ONLY
     # =========================
     st.markdown(
         """
         <style>
-        .card {
+        .status-card {
             background: white;
             padding: 18px;
             border-radius: 18px;
             box-shadow: 0 4px 14px rgba(0,0,0,0.10);
-            height: 450px;
-        }
-
-        .label-box {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 14px;
-            color: black;
+            height: 420px;
         }
 
         .legend-item {
+            font-size: 15px;
+            margin-bottom: 14px;
+            color: black;
             display: flex;
             align-items: center;
-            margin-bottom: 12px;
-            font-size: 15px;
-            color: black;
         }
 
         .dot {
-            height: 12px;
             width: 12px;
+            height: 12px;
             border-radius: 50%;
             margin-right: 10px;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: 700;
+            color: black;
+            margin-bottom: 10px;
         }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    # ONE CONTAINER ONLY
+    with st.container():
 
-    st.markdown('<div class="label-box">Programme Status</div>', unsafe_allow_html=True)
+        st.markdown('<div class="status-card">', unsafe_allow_html=True)
 
-    col1, col2 = st.columns([2, 1])
+        st.markdown('<div class="title">Programme Status Overview</div>', unsafe_allow_html=True)
 
-    with col1:
-        st.plotly_chart(
-            fig,
-            use_container_width=True,
-            config={"displayModeBar": False}
-        )
+        col1, col2 = st.columns([2, 1])
 
-    with col2:
-        st.markdown(
-            f"""
-            <div class="legend-item">
-                <div class="dot" style="background:#FFD700;"></div>
-                On Track: {summary['On Track']}
-            </div>
+        with col1:
+            st.plotly_chart(
+                fig,
+                use_container_width=True,
+                config={"displayModeBar": False}
+            )
 
-            <div class="legend-item">
-                <div class="dot" style="background:#FF3B30;"></div>
-                Delayed: {summary['Delayed']}
-            </div>
+        with col2:
+            st.markdown(f"""
+                <div class="legend-item">
+                    <div class="dot" style="background:#FFD700;"></div>
+                    On Track: {summary['On Track']}
+                </div>
 
-            <div class="legend-item">
-                <div class="dot" style="background:#00C853;"></div>
-                Accelerated: {summary['Accelerated']}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+                <div class="legend-item">
+                    <div class="dot" style="background:#FF3B30;"></div>
+                    Delayed: {summary['Delayed']}
+                </div>
 
-    st.markdown('</div>', unsafe_allow_html=True)
+                <div class="legend-item">
+                    <div class="dot" style="background:#00C853;"></div>
+                    Accelerated: {summary['Accelerated']}
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
