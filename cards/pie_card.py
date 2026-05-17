@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 def render_pie(result):
 
     # =========================
-    # COUNTS
+    # DATA
     # =========================
     on_track = (result["Change Type"] == "UNCHANGED").sum()
     delayed = (result["Change Type"] == "DELAYED").sum()
@@ -16,14 +16,14 @@ def render_pie(result):
     colors = ["gold", "red", "green"]
 
     # =========================
-    # CARD INTERNAL LAYOUT (LOCKED)
+    # CARD WRAPPER (STRICT CONTAINER)
     # =========================
     with st.container():
 
-        col1, col2 = st.columns([1.1, 1])
+        col1, col2 = st.columns([1, 1])
 
         # =========================
-        # PIE (LEFT - INSIDE CARD)
+        # PIE (LEFT)
         # =========================
         with col1:
 
@@ -34,22 +34,28 @@ def render_pie(result):
                         values=values,
                         marker=dict(colors=colors),
                         textinfo="value+percent",
-                        sort=False
+                        sort=False,
+                        hole=0  # solid pie (NOT donut)
                     )
                 ]
             )
 
             fig.update_layout(
-                height=280,
-                margin=dict(l=10, r=10, t=10, b=10),
+                height=260,
+                margin=dict(l=0, r=0, t=0, b=0),  # 🔥 removes overflow
                 paper_bgcolor="white",
+                plot_bgcolor="white",
                 showlegend=False
             )
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(
+                fig,
+                use_container_width=True,
+                config={"displayModeBar": False}
+            )
 
         # =========================
-        # LEGEND (RIGHT SIDE)
+        # LEGEND (RIGHT)
         # =========================
         with col2:
 
