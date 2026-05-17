@@ -7,14 +7,8 @@ from cards.table_card import render_table
 
 def render_home(result, df32):
 
-    # =========================
-    # TOP ROW
-    # =========================
     col1, col2 = st.columns([1, 1])
 
-    # =========================
-    # PIE
-    # =========================
     with col1:
         st.markdown("""
         <div class="dashboard-card">
@@ -25,9 +19,6 @@ def render_home(result, df32):
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # =========================
-    # DELAYED
-    # =========================
     with col2:
         st.markdown("""
         <div class="dashboard-card">
@@ -38,9 +29,6 @@ def render_home(result, df32):
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # =========================
-    # REGISTER
-    # =========================
     st.markdown("""
     <div class="dashboard-card">
         <div class="card-title">📋 Deliverable Register (CL31 vs CL32)</div>
