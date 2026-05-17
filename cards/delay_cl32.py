@@ -1,11 +1,7 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
 
-# =========================
-# DATA PREP
-# =========================
 def _prepare(df):
     df = df.copy()
 
@@ -20,17 +16,14 @@ def _prepare(df):
         .str.replace("%", "", regex=False)
     )
 
-    df["Activity % Complete"] = (
-        pd.to_numeric(df["Activity % Complete"], errors="coerce")
-        .fillna(0)
-    )
+    df["Activity % Complete"] = pd.to_numeric(
+        df["Activity % Complete"],
+        errors="coerce"
+    ).fillna(0)
 
     return df
 
 
-# =========================
-# DELAY LOGIC
-# =========================
 def _get_delayed(df):
     df = _prepare(df)
     today = pd.Timestamp.today()
@@ -42,33 +35,9 @@ def _get_delayed(df):
 
     delayed["Delay (Days)"] = (today - delayed["Finish"]).dt.days
 
-    delayed["Severity"] = pd.cut(
-        delayed["Delay (Days)"],
-        bins=[-1, 7, 30, 90, np.inf],
-        labels=["🟡 Low", "🟠 Medium", "🔴 High", "⚫ Critical"]
-    )
-
     return delayed.sort_values("Delay (Days)", ascending=False)
 
 
-# =========================
-# COLOUR LOGIC (STREAMLIT SAFE)
-# =========================
-def style_severity_column(col):
-    """Streamlit-safe column styling using Styler.map"""
-    return [
-        "background-color:#4a4a00; color:white; font-weight:bold" if "Low" in str(v)
-        else "background-color:#a66a00; color:white; font-weight:bold" if "Medium" in str(v)
-        else "background-color:#8b1e1e; color:white; font-weight:bold" if "High" in str(v)
-        else "background-color:#5a0000; color:white; font-weight:bold" if "Critical" in str(v)
-        else ""
-        for v in col
-    ]
-
-
-# =========================
-# MAIN TABLE RENDER
-# =========================
 def render_delayed_table(df):
     delayed = _get_delayed(df)
 
@@ -82,27 +51,17 @@ def render_delayed_table(df):
         "Start",
         "Finish",
         "Delay (Days)",
-        "Severity",
-        "Activity % Complete",
         "Comments"
     ]].copy()
 
-    # Format dates
+    # Format dates ONLY for display (no data change)
     display_df["Start"] = display_df["Start"].dt.strftime("%d-%b-%Y")
     display_df["Finish"] = display_df["Finish"].dt.strftime("%d-%b-%Y")
 
-    # Format %
-    display_df["Activity % Complete"] = (
-        display_df["Activity % Complete"].round(1).astype(str) + "%"
-    )
-
     # =========================
-    # DASHBOARD STYLING
+    # VISUAL FORMATTING ONLY
     # =========================
-    styled = display_df.style
-
-    # Header + table styling
-    styled = styled.set_table_styles([
+    styled = display_df.style.set_table_styles([
         {
             "selector": "th",
             "props": [
@@ -135,13 +94,6 @@ def render_delayed_table(df):
         }
     ])
 
-    # FIXED: no applymap (pandas 2+ safe)
-    styled = styled.apply(
-        style_severity_column,
-        subset=["Severity"]
-    )
-
-    # Render
     st.dataframe(
         styled,
         use_container_width=True,
